@@ -1,0 +1,10 @@
+FLAC = '.flac'
+WAV = '.wav'
+MKA = '.mka'
+CUE = '.cue'
+XML = 'xml'
+CHAPTERS = '.chapters.xml'
+JPG = '.jpg'
+JPEG = '.jpeg'
+PNG = '.png'
+IMAGES = [JPG, JPEG, PNG]
