@@ -29,7 +29,7 @@ class CueSheet:
 
     def Clean(self):
         if os.path.exists(self.outputname):
-            logging.info("Deleting {}".format(self.outputname))
+            logging.info("Deleting %s", self.outputname)
             os.unlink(self.outputname)
 
     def CreateCUE(self):
@@ -79,14 +79,14 @@ class CueFilenameChanger:
         self.createdfile = None
         self.lines = []
         if cuesheet != outputcue:
-            logging.info("{} -> {}".format(cuesheet, outputcue))
+            logging.info("%s -> %s", cuesheet, outputcue)
             self.createdfile = outputcue
             self._write(cuesheet)
         atexit.register(CueFilenameChanger.Clean, self)
 
     def Clean(self):
         if self.createdfile:
-            logging.info("Deleting {}".format(self.createdfile))
+            logging.info("Deleting %s", self.createdfile)
             os.unlink(self.createdfile)
 
     def _write(self, source_cue):
