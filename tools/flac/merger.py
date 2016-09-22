@@ -47,7 +47,7 @@ class FLACMerger:
         ``namegen.FileName``.
         """
         self.files = files
-        self.outname = FLACMerger._get_namegen(outname)
+        self.outname = namegen.GetNamegen(outname)
         atexit.register(FLACMerger.Clean, self)
 
     def _delfile(self, extension):
@@ -65,9 +65,8 @@ class FLACMerger:
         name parameter has been set, either in this method or in the
         constructor, then this method will raise a ``RuntimeError.``
         """
-        # TODO: fix
         if outname:
-            self.outname = FLACMerger._get_namegen(outname)
+            self.outname = namegen.GetNamegen(outname)
         if not self.outname:
             raise RuntimeError("Output name must be set.")
         self.MergeFLAC()
