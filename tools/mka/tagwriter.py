@@ -163,6 +163,5 @@ class MultiDiscTagger(MatroskaTagger):
 
 
 def CreateMatroskaTagger(args, mdata, outname=None):
-    if args.multidisc:
-        return MultiDiscTagger(mdata, outname)
-    return MatroskaTagger(mdata, outname)
+    cls = MultiDiscTagger if args.multidisc else MatroskaTagger
+    return cls(mdata, outname)
