@@ -22,7 +22,7 @@ class MatroskaChapters:
 
     def Clean(self):
         if os.path.exists(self.outputname):
-            logging.info("Deleting {}".format(self.outputname))
+            logging.info("Deleting %s", self.outputname)
             os.unlink(self.outputname)
 
     @staticmethod

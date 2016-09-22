@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 import os
-import logging
 import atexit
 from tools.flac import arguments, merger, verifier, metadata, cuewriter
 from tools.mka import arthandler, chapterwriter, createmka, tagwriter
 from tools.util import ext, flacutil, namegen
-logging = logging.getLogger(__name__)
 
 
 def flac_exists(flacname, mergeflacs):

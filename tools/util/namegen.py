@@ -21,7 +21,7 @@ class FileName:
         """Parameter ``base`` must be a path containing a '.', otherwise an
         exception is raised.
         """
-        logging.debug('Base parameter is {}'.format(base))
+        logging.debug('Base parameter is %s', base)
         if base.rfind('.') < 0:
             raise ValueError("Expected path to file, received {}".format(base))
         self.basename = base[0:base.rfind('.')]

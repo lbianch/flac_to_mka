@@ -1,9 +1,7 @@
 import os
 import subprocess
-from logging import getLogger
 
 from tools.util import ext, flacutil, namegen
-logging = getLogger(__name__)
 
 
 class MKACreator:

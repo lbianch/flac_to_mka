@@ -27,7 +27,7 @@ def main():
         return
     # Now we can actually begin the operation
     cuewriter.CueFilenameChanger(filename, basename(ext.CUE))
-    basename["flac"] = mdata.filename.replace(ext.WAV, ext.FLAC)
+    basename[ext.FLAC] = mdata.filename.replace(ext.WAV, ext.FLAC)
     tagwriter.MatroskaTagger(mdata).Create(basename(ext.XML))
     chapterwriter.MatroskaChapters(mdata).Create(basename(ext.CHAPTERS))
     createmka.MKACreator(args, mdata, basename, artwork).Create()

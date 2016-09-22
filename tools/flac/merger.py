@@ -52,7 +52,7 @@ class FLACMerger:
 
     def _delfile(self, extension):
         if os.path.exists(self.outname(extension)):
-            logging.info("Deleting {}".format(self.outname(ext)))
+            logging.info("Deleting %s", self.outname(ext))
             os.unlink(self.outname(extension))
 
     def Clean(self):

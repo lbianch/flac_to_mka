@@ -65,7 +65,6 @@ class Metadata(dict):
             return super().__getitem__(key)
         except KeyError:
             return ''
-        # return super().__getitem__(key) if key in self else ''
 
     def _MergeWithArgs(self, args):
         """Method to introduce arguments passed in via command line.  These
@@ -203,7 +202,7 @@ class Metadata(dict):
         characters are removed or replaced with dashes.
         """
         if self.forced_filename:
-            logging.debug('Forced filename or pre-computed file name = {}'.format(self.filename))
+            logging.debug('Forced filename or pre-computed file name = %s', self.filename)
             return self.filename
         tags = {}
 
@@ -285,6 +284,7 @@ class Metadata(dict):
              ("Year", self["DATE_RECORDED"]), ("Genre", self["GENRE"])]
 
         def add_optional(key):
+            # TODO: Is ``nonlocal`` necessary or is this handled via closure?
             nonlocal s
             if key in self:
                 text = key.replace('_', ' ').split(' ')
