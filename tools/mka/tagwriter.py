@@ -64,12 +64,15 @@ class MatroskaTagger:
         MatroskaTagger.CreateNestedTag(discinfo, tags.Targets, tags.TargetTypeValue).text = tags.TargetTypes.Album
         for data in self.metadata.items():
             MatroskaTagger.CreateSimpleTag(discinfo, *data)
-        return discinfo
 
     def CreateArtistTag(self):
         tag = ET.SubElement(self.root, tags.Tag)
         MatroskaTagger.CreateNestedTag(tag, tags.Targets, tags.TargetTypeValue).text = tags.TargetTypes.Track
         MatroskaTagger.CreateSimpleTag(tag, tags.Artist, self.metadata["ARTIST"])
+
+    def CreateDiscTags(self):
+        # Execution of ``CreateTags`` wants this function to exist for a subclass
+        pass
 
     def CreateTrackTag(self, trackno, track):
         if not isinstance(track, dict):
@@ -79,16 +82,14 @@ class MatroskaTagger:
         targets = ET.SubElement(node, tags.Targets)
         ET.SubElement(targets, tags.TargetTypeValue).text = tags.TargetTypes.Track
         ET.SubElement(targets, tags.ChapterUID).text = self.GetChapterUID(trackno)
-        track_tags = {'title': tags.Title, 'track': tags.PartNumber,
-                      'side': tags.Side, 'subindex': tags.Subindex,
-                      'phase': tags.Phase, 'subtitle': tags.Subtitle}
-        for key in track_tags:
+        for key, tag in tags.track_tags.items():
             with contextlib.suppress(KeyError):
-                self.CreateSimpleTag(node, track_tags[key], str(track[key]))
+                self.CreateSimpleTag(node, tag, str(track[key]))
 
     def CreateTags(self):
         self.CreateTotalDiscTag()
         self.CreateMetadata()
+        self.CreateDiscTags()
         self.CreateArtistTag()
         for track in enumerate(self.metadata.tracks):
             self.CreateTrackTag(*track)
@@ -105,18 +106,6 @@ class MatroskaTagger:
 
 
 class MultiDiscTagger(MatroskaTagger):
-    # TODO: When this creates the XML, it should create a structure where it has
-    # TargetType = 50
-    # ChapterUID = track1
-    # ChapterUID = track2
-    # Part = 1
-    # Total Parts = 2
-    # Target Type = 50
-    # ChapterUID = track3
-    # ChapterUID = track4
-    # Part = 2
-    # Total Parts = 2
-    # rather than having one for each ChapterUID
     def __init__(self, mdata, outputname=None):
         # Build up disc numbers and track numbers
         # eg, discinfo = {'1': 10, '2': 5}
@@ -125,6 +114,12 @@ class MultiDiscTagger(MatroskaTagger):
         #  call CreateMetadata, so this needs to be
         #  defined before super().__init__, but can't
         #  yet use self.metadata so just use mdata 
+        def GetDisc(track_info):
+            try:
+                return '{}{}'.format(track_info['disc'], track_info['side'])
+            except KeyError:
+                return track_info['disc']
+
         self.discinfo = defaultdict(list)
         for track in mdata.tracks:
             disc = MultiDiscTagger.GetDisc(track)
@@ -137,29 +132,22 @@ class MultiDiscTagger(MatroskaTagger):
         logging.debug('Disc info: {}'.format(self.discinfo))
         super().__init__(mdata, outputname)
 
-    @staticmethod
-    def GetDisc(track_info):
-        try:
-            return '{}{}'.format(track_info['disc'], track_info['side'])
-        except KeyError:
-            return track_info['disc']
-
-    def CreateTrackTag(self, trackno, track):
-        # Extend MatroskaTagger's functionality by including disc information
-        # on a per-track basis; associates this chapter (track) with an album-level
-        # tag which describes the part number (disc number) and total parts (total discs)
-        # Note that ``MatroskaTagger.CreateTrackTag`` creates a very similar-looking
-        # ``node`` except it uses ``tags.TargetTypes.Track`` and uses track-level
-        # information (track title, side, phase, subindex, subtitle).
-        MatroskaTagger.CreateTrackTag(self, trackno, track)
+    def CreateDiscTag(self, disc_number, chapter_idxs):
         node = ET.SubElement(self.root, tags.Tag)
         targets = ET.SubElement(node, tags.Targets)
         ET.SubElement(targets, tags.TargetTypeValue).text = tags.TargetTypes.Album
-        ET.SubElement(targets, tags.ChapterUID).text = self.GetChapterUID(trackno)
-        disc = MultiDiscTagger.GetDisc(track)
-        self.CreateSimpleTag(node, tags.PartNumber, track['disc'])
-        self.CreateSimpleTag(node, tags.TotalParts, str(self.discinfo[disc]))
-        logging.debug(track)
+        for chapter_idx in chapter_idxs:
+            ET.SubElement(targets, tags.ChapterUID).text = self.GetChapterUID(chapter_idx)
+        self.CreateSimpleTag(node, tags.PartNumber, disc_number)
+        self.CreateSimpleTag(node, tags.TotalParts, str(len(chapter_idxs)))
+
+    def CreateDiscTags(self):
+        discs = defaultdict(list)
+        for chapter_idx, track in enumerate(self.metadata.tracks):
+            disc = int(track['disc'])
+            discs[disc].append(chapter_idx)
+        for disc in discs:
+            self.CreateDiscTag(disc, discs[disc])
 
 
 def CreateMatroskaTagger(args, mdata, outname=None):

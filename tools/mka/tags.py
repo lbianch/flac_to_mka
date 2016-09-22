@@ -34,6 +34,12 @@ ChapterDisplay = "ChapterDisplay"
 ChapterString = "ChapterString"
 ChapterTime = "ChapterTimeStart"
 
+track_tags = {'title': Title,
+              'track': PartNumber,
+              'side': Side,
+              'subindex': Subindex,
+              'subtitle': Subtitle,
+              'phase': Phase}
 
 class TargetTypes:
     # These are only in a class to create scope
