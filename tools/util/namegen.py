@@ -46,6 +46,8 @@ class FileName:
 
 
 def GetNamegen(param):
+    if param is None:
+        return None
     if isinstance(param, FileName):
         return param
     if isinstance(param, str):

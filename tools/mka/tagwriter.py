@@ -72,6 +72,7 @@ class MatroskaTagger:
 
     def CreateDiscTags(self):
         # Execution of ``CreateTags`` wants this function to exist for a subclass
+        logging.debug('Doing nothing in base class')
         pass
 
     def CreateTrackTag(self, trackno, track):
@@ -122,7 +123,7 @@ class MultiDiscTagger(MatroskaTagger):
 
         self.discinfo = defaultdict(list)
         for track in mdata.tracks:
-            disc = MultiDiscTagger.GetDisc(track)
+            disc = GetDisc(track)
             trackno = int(track['track'])
             self.discinfo[disc].append(trackno)
         for key in self.discinfo:
@@ -137,15 +138,17 @@ class MultiDiscTagger(MatroskaTagger):
         targets = ET.SubElement(node, tags.Targets)
         ET.SubElement(targets, tags.TargetTypeValue).text = tags.TargetTypes.Album
         for chapter_idx in chapter_idxs:
-            ET.SubElement(targets, tags.ChapterUID).text = self.GetChapterUID(chapter_idx)
-        self.CreateSimpleTag(node, tags.PartNumber, disc_number)
+            ET.SubElement(targets, tags.ChapterUID).text = str(self.GetChapterUID(chapter_idx))
+        self.CreateSimpleTag(node, tags.PartNumber, str(disc_number))
         self.CreateSimpleTag(node, tags.TotalParts, str(len(chapter_idxs)))
 
     def CreateDiscTags(self):
+        logging.debug('MultiDiscTagger.CreateDiscTags')
         discs = defaultdict(list)
         for chapter_idx, track in enumerate(self.metadata.tracks):
             disc = int(track['disc'])
             discs[disc].append(chapter_idx)
+        logging.debug(discs)
         for disc in discs:
             self.CreateDiscTag(disc, discs[disc])
 
