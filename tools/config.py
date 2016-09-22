@@ -29,5 +29,5 @@ def GetConfig():
     config = {k: v for k, v in config.items() if type(v) is not dict}
     logging.debug('Configuration...')
     for k, v in config.items():
-        logging.debug("{} => {}".format(k, v))
+        logging.debug("%s -> %s", k, v)
     return config

@@ -46,12 +46,12 @@ class Artwork:
                 raise RuntimeError("Specified image {} not found".format(args.image))
             # Sanity check on specified image, use same requirements or require
             # user manually override this check when specifying image
-            if not (Artwork._IsUsableAndResolution(self.image)[0] or args.forceimage):
+            if not (Artwork._UsableResolution(self.image) or args.forceimage):
                 raise InvalidArtworkFormatError("Specified image either too small or incorrect aspect ratio")
             return
         self.image = filename
         if os.path.isfile(filename):
-            logging.info("Using {} as image source".format(self.image))
+            logging.info("Using %s as image source", self.image)
             return
         # This method searches for an image, if it finds one then it copies/extracts
         # it to ``filename`` which means that ``os.path.isfile(filename)`` now returns
@@ -62,7 +62,7 @@ class Artwork:
 
     def Clean(self):
         if self.owns_image and os.path.exists(self.image):
-            logging.info("Deleting {}".format(self.image))
+            logging.info("Deleting %s", self.image)
             os.unlink(self.image)
 
     def ImageType(self):
@@ -75,7 +75,7 @@ class Artwork:
         assert self.image.endswith(ext.PNG)
 
     @staticmethod
-    def _IsUsableAndResolution(filename):
+    def _UsableResolution(filename):
         """Requires the image satisfy the following requirements:
          - At least 500x500 pixels
          - Aspect ratio between 0.99 and 1.01
@@ -88,18 +88,16 @@ class Artwork:
         with Image.open(filename, 'r') as img:
             # Remove small images:
             if min(img.width, img.height) < 500:
-                msg = 'Skipping {} since dimensions are {}x{}'.format(filename, img.width, img.height)
-                logging.debug(msg)
-                return False, 0
+                logging.debug('Skipping %s since dimensions are %dx%d', filename, img.width, img.height)
+                return 0
             aspect = img.width / img.height
             # Remove images which aren't approximately square:
             if aspect < 0.99 or aspect > 1.01:
-                msg = 'Skipping {} since aspect ratio is {:.3f}:1'.format(filename, img.width/img.height)
-                logging.debug(msg)
-                return False, 0
+                logging.debug('Skipping %s since aspect ratio is %0.3f:1', filename, img.width/img.height)
+                return 0
             # Consider image usable
-            logging.debug('Considering {}'.format(filename))
-            return True, img.width
+            logging.debug('Considering %s', filename)
+            return img.width
 
     def _FindImage(self, excludemerged):
         """This method is called in the case that the image file wasn't readily
@@ -112,20 +110,20 @@ class Artwork:
         images from the FLAC files in the directory.
         """
         directory = flacutil.DirectoryName(self.image) or os.getcwd()
-        logging.debug('Searching in directory {}'.format(directory))
+        logging.debug('Searching in directory %s', directory)
         images = {}
         for f in flacutil.GetFilenames(ext.IMAGES, directory):
-            logging.debug('Found file {}'.format(f))
-            usable, width = Artwork._IsUsableAndResolution(f)
-            if usable:
+            logging.debug('Found file %s', f)
+            width = Artwork._UsableResolution(f)
+            if width:
                 images[width] = f
         if images:
-            logging.debug('Found {} files'.format(len(images)))
+            logging.debug('Found %s files', len(images))
             largest_image = images[max(images)]
             if largest_image.endswith(ext.PNG):
                 self._SwitchToPNG()
             shutil.copy(largest_image, self.image)
-            logging.info("Using {} as image source".format(largest_image))
+            logging.info("Using %s as image source", largest_image)
             return
         # Last resort is to check for embedded images within the FLAC files
         # If the merging has already happened, which it no longer does but
@@ -151,9 +149,9 @@ class Artwork:
         # Returns a tuple of ``(bool, int)`` describing whether to use the image
         # and if it is usable, the resolution (width).  Here we only need the boolean
         # status of whether to use the image or not, so we test on the first element.
-        if not Artwork._IsUsableAndResolution(self.image)[0]:
+        if not Artwork._UsableResolution(self.image):
             # Since ownership is already taken and the ``Clean`` method has been registered
             # via the ``atexit`` module we don't need to worry about cleaning up the file
             # that was extracted ourselves and can just raise the exception.
             raise InvalidArtworkFormatError("Embedded artwork is either too small or has wrong aspect ratio")
-        logging.info("Using embedded {} artwork from {}".format(self.ImageType(), flac_file))
+        logging.info("Using embedded %s artwork from %s", self.ImageType(), flac_file)

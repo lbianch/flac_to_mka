@@ -36,7 +36,7 @@ class MatroskaTagger:
 
     def Clean(self):
         if os.path.exists(self.outputname):
-            logging.info("Deleting {}".format(self.outputname))
+            logging.info("Deleting %s", self.outputname)
             os.unlink(self.outputname)
 
     @staticmethod
@@ -78,7 +78,7 @@ class MatroskaTagger:
     def CreateTrackTag(self, trackno, track):
         if not isinstance(track, dict):
             raise TypeError("Expected track to be a dict, was {}".format(type(track)))
-        logging.debug('Creating tag for track: {}'.format(track))
+        logging.debug('Creating tag for track: %s', track)
         node = ET.SubElement(self.root, tags.Tag)
         targets = ET.SubElement(node, tags.Targets)
         ET.SubElement(targets, tags.TargetTypeValue).text = tags.TargetTypes.Track
@@ -130,7 +130,7 @@ class MultiDiscTagger(MatroskaTagger):
             self.discinfo[key] = max(self.discinfo[key])
         # Because there may be sides, this isn't just ``len(self.discinfo)``
         mdata.discs = max(int(x['disc']) for x in mdata.tracks)
-        logging.debug('Disc info: {}'.format(self.discinfo))
+        logging.debug('Disc info: %s', self.discinfo)
         super().__init__(mdata, outputname)
 
     def CreateDiscTag(self, disc_number, chapter_idxs):
