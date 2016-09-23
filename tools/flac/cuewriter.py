@@ -39,11 +39,10 @@ class CueSheet:
         self.cuesheet.append('REM DATE "{}"'.format(self.metadata['DATE_RECORDED']))
         self.cuesheet.append('FILE "{}" WAVE'.format(self.mergedfile))
 
-        tracknumber = 1
         track_time = time.Time()
-        for f in self.files:
+        for track_num, f in enumerate(self.files):
             data = mutagen.flac.FLAC(f)
-            self.cuesheet.append('  TRACK {} AUDIO'.format(str(tracknumber).zfill(2)))
+            self.cuesheet.append('  TRACK {} AUDIO'.format(str(track_num + 1).zfill(2)))
             try:
                 title = '{}: {}'.format(data['TITLE'][0], data['SUBTITLE'][0])
             except KeyError:
@@ -51,7 +50,6 @@ class CueSheet:
             self.cuesheet.append('    TITLE "{}"'.format(title))
             self.cuesheet.append('    PERFORMER "{}"'.format(self.metadata['ARTIST']))
             self.cuesheet.append('    INDEX 01 {}'.format(track_time.CueCode()))
-            tracknumber += 1
             track_time += data.info.length  # seconds
 
     def Create(self, outputname=None):
