@@ -27,7 +27,6 @@ def ParseArguments():
                       help="Specify version of release; useful for regional releases, volumes, or special editions")
     args.add_argument("--medium",
                       help="Specify source medium of release",
-                      default="CD",
                       choices=["CD", "SACD", "DVD", "DVD-A", "Blu-ray",
                                "Web",
                                "Vinyl", "78RPM Vinyl",

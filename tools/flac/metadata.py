@@ -284,7 +284,6 @@ class Metadata(dict):
              ("Year", self["DATE_RECORDED"]), ("Genre", self["GENRE"])]
 
         def add_optional(key):
-            # TODO: Is ``nonlocal`` necessary or is this handled via closure?
             nonlocal s
             if key in self:
                 text = key.replace('_', ' ').split(' ')
@@ -370,6 +369,7 @@ class AlbumMetadata(Metadata):
         mapping.update({k: k for k in directmap})
         for skey, tkey in mapping.items():  # self/tag key
             if tkey in tag:
+                logging.debug("Found key %s, %s with value %s", skey, tkey, tag[tkey][0])
                 # ``mutagen.flac.FLAC`` behaves like a
                 # ``dict[str, list[str]]``
                 self[skey] = tag[tkey][0]
