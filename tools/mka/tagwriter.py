@@ -22,7 +22,7 @@ def PrettifyXML(xml_str):
         from xml.dom import minidom
         tmp = minidom.parseString(xml_str)
         xml_str = tmp.toprettyxml()
-    return xml_str
+    return xml_str.replace('<?xml version="1.0" ?>', '<?xml version="1.0" encoding="UTF-8" ?>')
 
 
 class MatroskaTagger:
@@ -100,9 +100,7 @@ class MatroskaTagger:
             self.outputname = outputname
         xml = ET.tostring(self.root, encoding="unicode")
         xml = PrettifyXML(xml)
-        with open(self.outputname, "w") as out:
-            out.write('<?xml version="1.0" encoding="UTF-8" standalone="no" ?>\n')
-            out.write('<!DOCTYPE Tags SYSTEM "matroskatags.dtd">\n')
+        with open(self.outputname, "w", encoding="utf-8") as out:
             out.write(xml)
 
 

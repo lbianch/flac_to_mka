@@ -61,7 +61,5 @@ class MatroskaChapters:
         self.outputname = outputname or self.outputname
         xml = ET.tostring(self.root, encoding="unicode")
         xml = PrettifyXML(xml)
-        with open(self.outputname, "w") as out:
-            out.write('<?xml version="1.0" encoding="UTF-8" standalone="no" ?>\n')
-            out.write('<!DOCTYPE Tags SYSTEM "matroskachapters.dtd">\n')
+        with open(self.outputname, "w", encoding="utf-8") as out:
             out.write(xml)

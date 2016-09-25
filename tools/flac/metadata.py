@@ -157,6 +157,9 @@ class Metadata(dict):
             raise DiscConfigurationError("Number of discs is set but disc number not known")
         if "PART_NUMBER" in self and self.discs < 2:
             raise DiscConfigurationError("Disc number is set but number of discs is not known")
+        # Ensure that the original medium is set, if it hasn't been set yet then assume CD
+        if "ORIGINAL_MEDIUM" not in self:
+            self["ORIGINAL_MEDIUM"] = "CD"
         # At this point it is necessary to require that all the metadata is present
         # These were setup in the constructor as ``None`` so they do exist, but they
         # must have been overridden as non-``None`` values
