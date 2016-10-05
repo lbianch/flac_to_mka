@@ -5,7 +5,7 @@ from tools.flac.arguments import ParseArguments
 from tools.util import ext
 from tools.util.flacutil import GetFilenames
 
-logging.basicConfig(level=logging.DEBUG,
+logging.basicConfig(level=logging.INFO,
                     format='[%(name)s - %(asctime)s] %(levelname)s: %(message)s')
 
 

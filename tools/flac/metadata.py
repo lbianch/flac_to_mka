@@ -5,6 +5,7 @@ from logging import getLogger
 
 import mutagen.flac
 
+from tools.flac import arguments
 from tools.util import ext, time
 
 FLACTime = time.Time
@@ -24,7 +25,7 @@ class DiscConfigurationError(Exception):
     pass
 
 
-class Metadata(dict):
+class Metadata(dict): #metaclass=abc.ABCMeta
     """Metadata class for holding information about an album, but not
     specifying a method by which to obtain the information.  Intended
     as a parent class for other classes which implement the ability
@@ -44,7 +45,7 @@ class Metadata(dict):
     also present (for CUE sheets, this is 'REM DISC' and 'REM DISCS').
     """
 
-    def __init__(self):
+    def __init__(self, source, args):
         super().__init__(self)
         self["TITLE"] = None
         self["ARTIST"] = None
@@ -55,16 +56,49 @@ class Metadata(dict):
         self.tracks = []
         self.filename = None
         self.forced_filename = False
+        self.source = source
 
-    def __getitem__(self, key):
-        """If the ``key`` doesn't exist, the empty string is returned.
-        As though ``__getitem__(key)`` was really ``get(key, "")``.
-        NB: Unlike ``defaultdict`` since the key is not stored.
-        """
-        try:
-            return super().__getitem__(key)
-        except KeyError:
-            return ''
+        self._initialize(source, args)
+        tag = self._GetTag()
+        self._PullChannels(tag.info)
+        self._PullHDFormat(tag.info)
+        self._MergeWithArgs(args)
+        self._Validate()
+        self._Finalize()
+
+    # @abc.abstractmethod
+    def _initialize(self, source, args):
+        pass
+
+    # @abc.abstractmethod
+    def _GetTag(self):
+        pass
+
+    def _PullChannels(self, info):
+        # Constructor initialized this to '2.0', check if that's accurate
+        if info.channels == 6:
+            self.channels = '5.1'
+        elif info.channels == 1:
+            self.channels = '1.0'
+        elif info.channels != 2:
+            raise RuntimeError("Channels {} not supported".format(info.channels))
+
+    def _PullHDFormat(self, info):
+        # Pull format information, of the form SampleRate/BitDepth [5.1|1.0]
+        # If the format matches the CD specification then nothing is done
+        # The result is stored in ``self["HD_FORMAT"]``
+        if info.sample_rate == 44100 and info.bits_per_sample == 16 or info.channels == 2:
+            return
+        # This isn't a CD format
+        samplerate = info.sample_rate
+        hdformat = []
+        hdformat.append(str(samplerate/1000) if samplerate % 1000 else str(samplerate//1000))
+        hdformat.append("/{}".format(info.bits_per_sample))
+        if info.channels == 6:
+            hdformat.append(" 5.1")
+        elif info.channels == 1:
+            hdformat.append(" 1.0")
+        self["HD_FORMAT"] = ''.join(hdformat)
 
     def _MergeWithArgs(self, args):
         """Method to introduce arguments passed in via command line.  These
@@ -115,34 +149,10 @@ class Metadata(dict):
             self.forced_filename = True
         self._Validate()
 
-    def _PullChannels(self, tags):
-        # Constructor initialized this to '2.0', check if that's accurate
-        if tags.info.channels == 6:
-            self.channels = '5.1'
-        elif tags.info.channels == 1:
-            self.channels = '1.0'
-        elif tags.info.channels != 2:
-            raise RuntimeError("Channels {} not supported".format(tags.info.channels))
-
-    def _PullHDFormat(self, tags):
-        # Pull format information, of the form SampleRate/BitDepth [5.1|1.0]
-        # If the format matches the CD specification then nothing is done
-        # The result is stored in ``self["HD_FORMAT"]``
-        if tags.info.sample_rate != 44100 or tags.info.bits_per_sample != 16 or tags.info.channels != 2:
-            # This isn't a CD format
-            samplerate = tags.info.sample_rate
-            hdformat = str(samplerate/1000) if samplerate % 1000 else str(samplerate//1000)
-            hdformat += "/{}".format(tags.info.bits_per_sample)
-            if tags.info.channels == 6:
-                hdformat += " 5.1"
-            elif tags.info.channels == 1:
-                hdformat += " 1.0"
-            self["HD_FORMAT"] = hdformat
-
     def _Validate(self):
         """Ensures sane entries for "ISSUE_DATE" and "LABEL", disc numbering,
         and ensures that the required tags ("TITLE", "ARTIST", "GENRE", "DATE")
-        have been set.
+        have been set.  Removes leading or trailing whitespace for all tags.
         """
         # There's some possible conflict with LABEL and ISSUE_DATE
         # If the date exists but the label isn't defined, this property
@@ -180,7 +190,11 @@ class Metadata(dict):
         year.
         """
         if sumparts:
-            self["TOTAL_PARTS"] = str(len(self.tracks))
+            # Because some files may have corresponded to subtracks of a single logical
+            # track, it's possible that the number of items in ``self.tracks`` is greater
+            # than the actual number of tracks, so the correct thing to do is take
+            # the greatest track number
+            self["TOTAL_PARTS"] = str(max(int(x["track"]) for x in self.tracks))
         elif "TOTAL_PARTS" in self:
             del self["TOTAL_PARTS"]
         if len(self["DATE_RECORDED"]) != 4:
@@ -190,7 +204,17 @@ class Metadata(dict):
                     self["DATE_RECORDED"] = y
                     break
             else:
-                raise RuntimeError("Can't parse date " + self["DATE_RECORDED"])        
+                raise RuntimeError("Can't parse date {}".format(self["DATE_RECORDED"]))
+
+    def __getitem__(self, key):
+        """If the ``key`` doesn't exist, the empty string is returned.
+        As though ``__getitem__(key)`` was really ``get(key, "")``.
+        NB: Unlike ``defaultdict`` since the key is not stored.
+        """
+        try:
+            return super().__getitem__(key)
+        except KeyError:
+            return ''
 
     def GetOutputFilename(self, directory=None):
         """If an explicit filename was provided to command line arguments,
@@ -338,16 +362,35 @@ class Metadata(dict):
         return not answer.startswith("n")
 
 
+def _GetAlbumLevelMetadata(files):
+    # Obtain album-level tags from the first file
+    # Assumption is these tags are the same for every file
+    tag = mutagen.flac.FLAC(files[0])
+    # These tags are copied directly
+    directmap = ["ARTIST", "GENRE", "LABEL", "ISSUE_DATE",
+                 "VERSION", "ORIGINAL_MEDIUM", "DISC_NAME"]
+    # These are renamed
+    mapping = {"TITLE": "ALBUM", "DATE_RECORDED": "DATE"}
+    mapping.update({k: k for k in directmap})
+    result = {}
+    for rkey, tkey in mapping.items():
+        if tkey in tag:
+            logging.debug("Found key %s, %s with value %s", rkey, tkey, tag[tkey][0])
+            # ``mutagen.flac.FLAC`` behaves like a ``dict[str, list[str]]``
+            result[rkey] = tag[tkey][0]
+    return result
+
+
 class AlbumMetadata(Metadata):
-    """Metadata class holding information for a collection of FLAC files.
-    Searches through the metadata tags in each FLAC file to determine
-    information about them then build up the Metadata structure.
+    """Metadata class holding information for a collection of FLAC files
+    from a single disc.  Searches through the metadata tags in each FLAC
+    file to determine information about them then build up the ``Metadata``
+    structure.
     Supported disc-level FLAC tags:
-      ARTIST, TITLE, DATE, GENRE, LABEL, ISSUE_DATE, 
-      VERSION, ORIGINAL_MEDIUM, DISC_NAME,
-      DISCTOTAL, DISCNUMBER
+      ARTIST, TITLE, DATE, GENRE, LABEL, ISSUE_DATE, VERSION,
+      ORIGINAL_MEDIUM, DISC_NAME, DISCTOTAL, DISCNUMBER
     Supported track-level FLAC tags:
-      TITLE, TRACKNUMBER, SUBTITLE, DISCNUMBER, SIDE
+      TITLE, TRACKNUMBER, SUBINDEX, SUBTITLE, PHASE, SIDE
     NB: DISCNUMBER is ignored if DISCTOTAL is not present, and vice versa,
     or if both are '1'.  Also supports 1.0 and 5.1 audio which is indicated
     in the output file name, unless explicitly overridden with a non-empty
@@ -356,39 +399,72 @@ class AlbumMetadata(Metadata):
     See parent class Metadata for more information.
     """
 
-    def __init__(self, files, args=None):
-        super().__init__()
-        # Obtain album-level tags from the first file
-        # Assumption is these tags are the same for every file
-        #        for t in ["TITLE", "ALBUM", "GENRE", "DATE"]:
-        #            if t not in tag:
-        #                raise TagNotFoundError("File {} lacks tag {}".format(files[0], t))
-        # Pull information from tags
-        # Some tags are essentially copied or copied with a different name
-        tag = mutagen.flac.FLAC(files[0])
-        directmap = ["ARTIST", "GENRE", "LABEL", "ISSUE_DATE",
-                     "VERSION", "ORIGINAL_MEDIUM", "DISC_NAME"]
-        mapping = {"TITLE": "ALBUM", "DATE_RECORDED": "DATE"}
-        mapping.update({k: k for k in directmap})
-        for skey, tkey in mapping.items():  # self/tag key
-            if tkey in tag:
-                logging.debug("Found key %s, %s with value %s", skey, tkey, tag[tkey][0])
-                # ``mutagen.flac.FLAC`` behaves like a
-                # ``dict[str, list[str]]``
-                self[skey] = tag[tkey][0]
+    def _initialize(self, files, args):
+        # First check for multidisc mode; after this we can assume that
+        #    ``args.multidisc`` is ``False``
+        if args.multidisc:
+            raise ValueError("Cannot use 'AlbumMetadata' in multidisc mode, use 'MultidiscMetadata'")
 
-        # Pull disc number from tags if both fields exist
-        # If the ``args.multidisc`` option is requested, ignore this
-        if all(x in tag for x in ["DISCTOTAL", "DISCNUMBER"]):
+        # Pull in album level data and store it in the ``dict`` component of ``self``
+        data = _GetAlbumLevelMetadata(files)
+        self.update(data)
+
+        # Pull disc number from tags if both fields exist, but skip if disc 1/1
+        tag = self._GetTag()
+        if "DISCTOTAL" in tag and "DISCNUMBER" in tag:
             discs = int(tag["DISCTOTAL"][0])
-            if not args.multidisc and discs > 1:
+            if discs > 1:
                 self["PART_NUMBER"] = tag["DISCNUMBER"][0]
                 self.discs = discs
 
-        # Pull format information and merge with command line arguments
-        self._PullChannels(tag)
-        self._PullHDFormat(tag)
-        self._MergeWithArgs(args)
+        # Pull track-level info: title, subindex, subtitle, start time, phase, side
+        mka_time = FLACTime()
+        for f in sorted(files):
+            if self.GetOutputFilename() in f.replace(ext.FLAC, ext.WAV):
+                continue
+            tag = mutagen.flac.FLAC(f)
+            try:
+                self.tracks.append({"title": tag["TITLE"][0],
+                                    "track": tag["TRACKNUMBER"][0],
+                                    "start_time": mka_time.MKACode()})
+            except KeyError as key:
+                raise TagNotFoundError("{} doesn't contain key {}".format(f, key))
+            for t in ["SIDE", "SUBTITLE", "SUBINDEX", "PHASE"]:
+                with IgnoreKeyError:
+                    self.tracks[-1][t.lower()] = tag[t][0]
+            mka_time += tag.info.length
+
+    def _GetTag(self):
+        return mutagen.flac.FLAC(self.source[0])
+
+
+class MultidiscMetadata(Metadata):
+    """Metadata class holding information for a collection of FLAC files
+    from multiple discs.  Searches through the metadata tags in each FLAC
+    file to determine information about them then build up the ``Metadata``
+    structure.
+    Supported disc-level FLAC tags:
+      ARTIST, TITLE, DATE, GENRE, LABEL, ISSUE_DATE, VERSION,
+      ORIGINAL_MEDIUM, DISCTOTAL
+    Supported track-level FLAC tags:
+      TITLE, TRACKNUMBER, DISC_NAME, DISCNUMBER, SUBINDEX, SUBTITLE,
+      PHASE, SIDE
+    Also supports 1.0 and 5.1 audio which is indicated in the output file name,
+    unless explicitly overridden with a non-empty ``args.output`` value passed
+    to the constructor.
+
+    See parent class ``Metadata`` for more information.
+    """
+
+    def _initialize(self, files, args):
+        # First check for multidisc mode; after this we can assume that
+        #    ``args.multidisc`` is ``True``
+        if args and not args.multidisc:
+            raise ValueError("Cannot use 'MultidiscMetadata' in non-multidisc mode, use 'AlbumMetadata'")
+
+        # Pull in album level data and store it in the ``dict`` component of ``self``
+        data = _GetAlbumLevelMetadata(files)
+        self.update(data)
 
         # Now pull track-level information which varies from file to file
         # This is essentially the track (sub)title, start time, disc number
@@ -411,7 +487,10 @@ class AlbumMetadata(Metadata):
                 with IgnoreKeyError:
                     self.tracks[-1][t.lower()] = tag[t][0]
             mka_time += tag.info.length
-        self._Finalize(not args.multidisc)
+        self._Finalize(sumparts=False)
+
+    def _GetTag(self):
+        return mutagen.flac.FLAC(self.source[0])
 
 
 class CueMetadata(Metadata):
@@ -432,8 +511,7 @@ class CueMetadata(Metadata):
     See the parent class ``Metadata`` for more information.
     """
 
-    def __init__(self, cuename, args=None):
-        super().__init__()
+    def _initialize(self, cuename, args):
         with open(cuename) as cue:
             lines = cue.readlines()
         for i, line in enumerate(lines):
@@ -450,7 +528,7 @@ class CueMetadata(Metadata):
                 direct_tags = ["GENRE", "ISSUE_DATE", "LABEL", "VERSION", "ORIGINAL_MEDIUM", "DISC_NAME"]
                 direct_tags = {"REM {}".format(t): t for t in direct_tags}
                 # Note that ``"REM DISC "`` has a space at the end because ``"REM DISCID"``
-                # is commonly added by CD ripping programs and this is not what we want.
+                # is commonly added by CD ripping programs and this is not what we want
                 direct_tags.update({"REM DATE": "DATE_RECORDED", "REM DISC ": "PART_NUMBER",
                                     "PERFORMER": "ARTIST", "TITLE": "TITLE"})
                 for key, tag in direct_tags.items():
@@ -458,23 +536,19 @@ class CueMetadata(Metadata):
                         self[tag] = CueMetadata.ExtractProperty(line, key)
                         break
 
-        # Read remaining information from the FLAC file itself
-        directory = os.path.dirname(cuename)
-
         # Pull missing information from source audio:
-        tags = mutagen.flac.FLAC(os.path.join(directory, self.filename))
+        tags = self._GetTag()
         for tag in ["TITLE", "ARTIST", "GENRE"]:
             if self[tag] is None and tag in tags:
                 self[tag] = tags[tag][0]
         if self["DATE_RECORDED"] is None and "DATE" in tags:
             self["DATE_RECORDED"] = tags["DATE"][0]
 
-        # Pull HD format and merge with command line arguments
-        self._PullChannels(tags)
-        self._PullHDFormat(tags)
-        self._MergeWithArgs(args)
-        self._Finalize()
-        
+    def _GetTag(self):
+        directory = os.path.dirname(self.source)
+        filename = os.path.join(directory, self.filename)
+        return mutagen.flac.FLAC(filename)
+
     @staticmethod
     def ExtractProperty(line, name):
         """Helper method to deal with lines in a CUE sheet which
@@ -564,10 +638,13 @@ def GetMetadata(source, args=None):
     """
     if issubclass(source.__class__, Metadata):
         return source
+    if not args:
+        args = arguments.ParseArguments()
     if isinstance(source, str) and source.lower().endswith(ext.CUE) and os.path.isfile(source):
         return CueMetadata(source, args)
     if isinstance(source, list):
-        if all(os.path.isfile(f) and f.lower().endswith(ext.FLAC) for f in source):
-            return AlbumMetadata(source, args)
-        raise ValueError("List input supported but must be list of FLAC file name")
+        if any(not os.path.isfile(f) or not f.lower().endswith(ext.FLAC) for f in source):
+            raise ValueError("List input supported but must be list of FLAC file name")
+        cls = MultidiscMetadata if args.multidisc else AlbumMetadata
+        return cls(source, args)
     raise TypeError("Only supported inputs are Metadata objects, list of FLAC file names, or .CUE filename")
