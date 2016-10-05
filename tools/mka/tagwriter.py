@@ -63,6 +63,8 @@ class MatroskaTagger:
         discinfo = ET.SubElement(self.root, tags.Tag)
         MatroskaTagger.CreateNestedTag(discinfo, tags.Targets, tags.TargetTypeValue).text = tags.TargetTypes.Album
         for data in self.metadata.items():
+            msg = 'Creating generic TargetTypeValue %s metadata tag using %s'
+            logging.debug(msg, tags.TargetTypes.Album, list(data))
             MatroskaTagger.CreateSimpleTag(discinfo, *data)
 
     def CreateArtistTag(self):
@@ -72,7 +74,6 @@ class MatroskaTagger:
 
     def CreateDiscTags(self):
         # Execution of ``CreateTags`` wants this function to exist for a subclass
-        logging.debug('Doing nothing in base class')
         pass
 
     def CreateTrackTag(self, trackno, track):
@@ -118,10 +119,13 @@ class MultiDiscTagger(MatroskaTagger):
             except KeyError:
                 return track_info['disc']
 
+        # Create ``self.discinfo`` storing a mapping from discs to ``dict``
+        # of the form ``{'index': chapter_index, 'track': track_number}``
         self.discinfo = defaultdict(list)
         for chapter_idx, track in enumerate(mdata.tracks):
             disc = GetDisc(track)
-            self.discinfo[disc].append(chapter_idx)
+            data = {'index': chapter_idx, 'track': track['track']}
+            self.discinfo[disc].append(data)
         # Because there may be sides, this isn't just ``len(self.discinfo)``
         mdata.discs = max(int(x['disc']) for x in mdata.tracks)
         logging.debug('Disc info: %s', self.discinfo)
@@ -132,9 +136,12 @@ class MultiDiscTagger(MatroskaTagger):
         targets = ET.SubElement(node, tags.Targets)
         ET.SubElement(targets, tags.TargetTypeValue).text = tags.TargetTypes.Album
         for chapter_idx in chapter_idxs:
+            chapter_idx = chapter_idx['index']
             ET.SubElement(targets, tags.ChapterUID).text = str(self.GetChapterUID(chapter_idx))
         self.CreateSimpleTag(node, tags.PartNumber, disc_number.strip('AB'))  # Remove side if present
-        self.CreateSimpleTag(node, tags.TotalParts, str(len(chapter_idxs)))
+        # This needs to find the number of tracks for this disc
+        total_parts = max(int(ch['track']) for ch in chapter_idxs)
+        self.CreateSimpleTag(node, tags.TotalParts, str(total_parts))
 
     def CreateDiscTags(self):
         for disc in sorted(self.discinfo):
