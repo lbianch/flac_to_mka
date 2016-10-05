@@ -44,6 +44,7 @@ class Metadata(dict): #metaclass=abc.ABCMeta
     priority.  Only allows the disc-level tag 'DISCNUMBER' if 'DISCTOTAL' is
     also present (for CUE sheets, this is 'REM DISC' and 'REM DISCS').
     """
+    sumparts = None
 
     def __init__(self, source, args):
         super().__init__(self)
@@ -64,7 +65,7 @@ class Metadata(dict): #metaclass=abc.ABCMeta
         self._PullHDFormat(tag.info)
         self._MergeWithArgs(args)
         self._Validate()
-        self._Finalize()
+        self._Finalize(self.__class__.sumparts)
 
     # @abc.abstractmethod
     def _initialize(self, source, args):
@@ -183,19 +184,22 @@ class Metadata(dict): #metaclass=abc.ABCMeta
         for key, value in self.items():
             self[key] = value.strip()
 
-    def _Finalize(self, sumparts=True):
+    def _Finalize(self, sumparts):
         """The ``sumparts`` argument is a bool which controls whether the output
         should contain the "TOTAL_PARTS" field which specifies the number of
         tracks.  This method also ensures the "DATE_RECORDED" field is a 4-digit
         year.
         """
+        logging.debug("Sumparts = %s", sumparts)
         if sumparts:
             # Because some files may have corresponded to subtracks of a single logical
             # track, it's possible that the number of items in ``self.tracks`` is greater
             # than the actual number of tracks, so the correct thing to do is take
             # the greatest track number
+            logging.debug("Summing parts")
             self["TOTAL_PARTS"] = str(max(int(x["track"]) for x in self.tracks))
         elif "TOTAL_PARTS" in self:
+            logging.debug("Deleting 'TOTAL_PARTS'")
             del self["TOTAL_PARTS"]
         if len(self["DATE_RECORDED"]) != 4:
             year = re.split("-|/|\.", self["DATE_RECORDED"])
@@ -390,7 +394,7 @@ class AlbumMetadata(Metadata):
       ARTIST, TITLE, DATE, GENRE, LABEL, ISSUE_DATE, VERSION,
       ORIGINAL_MEDIUM, DISC_NAME, DISCTOTAL, DISCNUMBER
     Supported track-level FLAC tags:
-      TITLE, TRACKNUMBER, SUBINDEX, SUBTITLE, PHASE, SIDE
+      TITLE, TRACKNUMBER, SIDE, SUBINDEX, SUBTITLE, PHASE
     NB: DISCNUMBER is ignored if DISCTOTAL is not present, and vice versa,
     or if both are '1'.  Also supports 1.0 and 5.1 audio which is indicated
     in the output file name, unless explicitly overridden with a non-empty
@@ -398,6 +402,8 @@ class AlbumMetadata(Metadata):
 
     See parent class Metadata for more information.
     """
+
+    sumparts = True
 
     def _initialize(self, files, args):
         # First check for multidisc mode; after this we can assume that
@@ -443,18 +449,20 @@ class MultidiscMetadata(Metadata):
     from multiple discs.  Searches through the metadata tags in each FLAC
     file to determine information about them then build up the ``Metadata``
     structure.
+    Supported collection-level FLAC tags:
+      DISCTOTAL
     Supported disc-level FLAC tags:
-      ARTIST, TITLE, DATE, GENRE, LABEL, ISSUE_DATE, VERSION,
-      ORIGINAL_MEDIUM, DISCTOTAL
+      ARTIST, ALBUM TITLE, DATE, GENRE, LABEL, ISSUE_DATE, VERSION, ORIGINAL_MEDIUM
     Supported track-level FLAC tags:
-      TITLE, TRACKNUMBER, DISC_NAME, DISCNUMBER, SUBINDEX, SUBTITLE,
-      PHASE, SIDE
+      TITLE, TRACKNUMBER, SIDE, DISC_NAME, DISCNUMBER, SUBINDEX, SUBTITLE, PHASE
     Also supports 1.0 and 5.1 audio which is indicated in the output file name,
     unless explicitly overridden with a non-empty ``args.output`` value passed
     to the constructor.
 
     See parent class ``Metadata`` for more information.
     """
+
+    sumparts = False
 
     def _initialize(self, files, args):
         # First check for multidisc mode; after this we can assume that
@@ -480,12 +488,15 @@ class MultidiscMetadata(Metadata):
                                     "start_time": mka_time.MKACode()})
             except KeyError as key:
                 raise TagNotFoundError("{} doesn't contain key {}".format(f, key))
-            with IgnoreKeyError:
-                if args.multidisc or self.discs > 1:
-                    self.tracks[-1]["disc"] = tag["DISCNUMBER"][0]
-            for t in ["SIDE", "SUBTITLE", "SUBINDEX", "PHASE"]:
+            tags = {"disc": "DISCNUMBER",
+                    "disc_name": "DISC_NAME",
+                    "subindex": "SUBINDEX",
+                    "subtitle": "SUBTITLE",
+                    "side": "SIDE",
+                    "phase": "PHASE"}
+            for skey, tkey in tags.items():
                 with IgnoreKeyError:
-                    self.tracks[-1][t.lower()] = tag[t][0]
+                    self.tracks[-1][skey] = tag[tkey][0]
             mka_time += tag.info.length
         self._Finalize(sumparts=False)
 
@@ -510,6 +521,8 @@ class CueMetadata(Metadata):
 
     See the parent class ``Metadata`` for more information.
     """
+
+    sumparts = True
 
     def _initialize(self, cuename, args):
         with open(cuename) as cue:
