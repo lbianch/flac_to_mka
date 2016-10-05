@@ -26,25 +26,26 @@ class DiscConfigurationError(Exception):
 
 
 class Metadata(dict): #metaclass=abc.ABCMeta
-    """Metadata class for holding information about an album, but not
-    specifying a method by which to obtain the information.  Intended
-    as a parent class for other classes which implement the ability
-    to pull track-level metadata.  
+    """Metadata class for holding information about an album, but not specifying
+    a method by which to obtain the information.  Intended as a parent class for
+    other classes which implement the ability to pull track-level metadata.
 
     Required tags are 'TITLE', 'ARTIST', 'GENRE', and 'DATE' ('DATE_RECORDED').
-    Stores a ``list`` of tracks in ``Metadata.tracks``, which are intended to
-    be ``dict`` objects holding data with string keys and values, intended to
-    have the keys 'title', 'track', 'start_time', and optionally 'disc' and/or
-    'side' (useful for vinyl sourced material).  The 'start_time' parameter
-    is used by ``mka.chapterwriter.MatroskaChapters`` to write out the chapter
-    information rather than building up a .CUE file and using that as the
-    Matroska chapter source.
+    Stores a ``list`` of tracks in ``self.tracks``, which are intended to be
+    ``dict`` objects holding data with string keys and values, intended to
+    have the keys 'title', 'track', 'start_time', and optionally 'disc', 'side',
+    'phase', 'subindex', and/or 'subtitle'.  The 'start_time' parameter is used by
+    ``mka.chapterwriter.MatroskaChapters`` to write out the chapter information
+    to be used as the Matroska chapter source (XML).
 
     Performs some validation against optional parameters args, which takes
     priority.  Only allows the disc-level tag 'DISCNUMBER' if 'DISCTOTAL' is
     also present (for CUE sheets, this is 'REM DISC' and 'REM DISCS').
+
+    Also supports 1.0 and 5.1 audio which is indicated in the output file name,
+    unless explicitly overridden with a non-empty ``args.output`` value passed
+    to the constructor.
     """
-    sumparts = None
 
     def __init__(self, source, args):
         super().__init__(self)
@@ -195,7 +196,7 @@ class Metadata(dict): #metaclass=abc.ABCMeta
             # Because some files may have corresponded to subtracks of a single logical
             # track, it's possible that the number of items in ``self.tracks`` is greater
             # than the actual number of tracks, so the correct thing to do is take
-            # the greatest track number
+            # the largest track number
             logging.debug("Summing parts")
             self["TOTAL_PARTS"] = str(max(int(x["track"]) for x in self.tracks))
         elif "TOTAL_PARTS" in self:
@@ -223,6 +224,55 @@ class Metadata(dict): #metaclass=abc.ABCMeta
             return super().__getitem__(key)
         except KeyError:
             return ''
+
+    def __str__(self):
+        """String representation of the disc-level metadata.  Produces a
+        table with the metadata which can be printed.  Note that track-level
+        information is not part of the table.
+        """
+        # These are required tags so we should have generated an
+        # error beforehand and this shouldn't raise a ``KeyError``
+        s = [("Album Title", self["TITLE"]), ("Album Artist", self["ARTIST"]),
+             ("Year", self["DATE_RECORDED"]), ("Genre", self["GENRE"])]
+
+        def add_optional(key):
+            nonlocal s
+            if key in self:
+                text = key.replace('_', ' ').split(' ')
+                text = ' '.join([x.capitalize() for x in text])
+                s += [(text, self[key])]
+
+        add_optional("LABEL")
+        add_optional("ISSUE_DATE")
+        add_optional("ORIGINAL_MEDIUM")
+        add_optional("VERSION")
+        add_optional("HD_FORMAT")
+        add_optional("DISC_NAME")
+        if self.discs > 1:
+            s += [("Disc", self["PART_NUMBER"])]
+            s += [("Discs", self.discs)]
+        if self.channels != "2.0":
+            s += [("Channels", self.channels)]
+        # Now we have to deal with the formatted output.  First we need
+        # the maximum length of the keys to properly align the output
+        # Note that the keys used will have a space appended, so we add 1
+        max_len = max(len(x[0]) for x in s)+1
+
+        # Output for an entry in ``s`` of ("Year", "2016") with a ``max_len`` of 10
+        # would be: '= Year .....: 2016'
+        def line(k, v):
+            return "{}: {}".format("{} ".format(k).ljust(max_len, '.'), v)
+
+        s = [line(*x) for x in s]
+        # Now we can reuse ``max_len`` to mean the longest fully formatted line
+        # We want to add '= ' to the left side and ' =' to the right side to
+        # form a border
+        max_len = max(len(x) for x in s)
+        for i in range(len(s)):
+            s[i] = '= {} ='.format(s[i].ljust(max_len))
+        max_len += 4
+        s = [" ALBUM INFORMATION ".center(max_len, "=")]+s+["="*max_len]
+        return "\n".join(s)
 
     def GetOutputFilename(self, directory=None):
         """If an explicit filename was provided to command line arguments,
@@ -308,55 +358,6 @@ class Metadata(dict): #metaclass=abc.ABCMeta
         with contextlib.suppress(UnicodeEncodeError):
             self._PrintMetadata()
 
-    def __str__(self):
-        """String representation of the disc-level metadata.  Produces a
-        table with the metadata which can be printed.  Note that track-level
-        information is not part of the table.
-        """
-        # These are required tags so we should have generated an
-        # error beforehand and this shouldn't raise a ``KeyError``
-        s = [("Album Title", self["TITLE"]), ("Album Artist", self["ARTIST"]),
-             ("Year", self["DATE_RECORDED"]), ("Genre", self["GENRE"])]
-
-        def add_optional(key):
-            nonlocal s
-            if key in self:
-                text = key.replace('_', ' ').split(' ')
-                text = ' '.join([x.capitalize() for x in text])
-                s += [(text, self[key])]
-
-        add_optional("LABEL")
-        add_optional("ISSUE_DATE")
-        add_optional("ORIGINAL_MEDIUM")
-        add_optional("VERSION")
-        add_optional("HD_FORMAT")
-        add_optional("DISC_NAME")
-        if self.discs > 1:
-            s += [("Disc", self["PART_NUMBER"])]
-            s += [("Discs", self.discs)]
-        if self.channels != "2.0":
-            s += [("Channels", self.channels)]
-        # Now we have to deal with the formatted output.  First we need
-        # the maximum length of the keys to properly align the output
-        # Note that the keys used will have a space appended, so we add 1
-        max_len = max(len(x[0]) for x in s) + 1
-
-        # Output for an entry in ``s`` of ("Year", "2016") with a ``max_len`` of 10
-        # would be: '= Year .....: 2016'
-        def line(k, v):
-            return "{}: {}".format("{} ".format(k).ljust(max_len, '.'), v)
-
-        s = [line(*x) for x in s]
-        # Now we can reuse ``max_len`` to mean the longest fully formatted line
-        # We want to add '= ' to the left side and ' =' to the right side to
-        # form a border
-        max_len = max(len(x) for x in s)
-        for i in range(len(s)):
-            s[i] = '= {} ='.format(s[i].ljust(max_len))
-        max_len += 4
-        s = [" ALBUM INFORMATION ".center(max_len, "=")] + s + ["=" * max_len]
-        return "\n".join(s)
-
     def Confirm(self):
         """Prints out metadata using ``PrintMetadata`` then asks
         the user if they want to continue.  Any answer starting
@@ -400,11 +401,9 @@ class AlbumMetadata(Metadata):
     Supported track-level FLAC tags:
       TITLE, TRACKNUMBER, SIDE, SUBINDEX, SUBTITLE, PHASE
     NB: DISCNUMBER is ignored if DISCTOTAL is not present, and vice versa,
-    or if both are '1'.  Also supports 1.0 and 5.1 audio which is indicated
-    in the output file name, unless explicitly overridden with a non-empty
-    ``args.output`` value passed to the constructor.
+    or if both are '1'.
 
-    See parent class Metadata for more information.
+    See parent class ``Metadata`` for more information.
     """
 
     sumparts = True
@@ -459,9 +458,6 @@ class MultidiscMetadata(Metadata):
       ARTIST, ALBUM TITLE, DATE, GENRE, LABEL, ISSUE_DATE, VERSION, ORIGINAL_MEDIUM
     Supported track-level FLAC tags:
       TITLE, TRACKNUMBER, SIDE, DISC_NAME, DISCNUMBER, SUBINDEX, SUBTITLE, PHASE
-    Also supports 1.0 and 5.1 audio which is indicated in the output file name,
-    unless explicitly overridden with a non-empty ``args.output`` value passed
-    to the constructor.
 
     See parent class ``Metadata`` for more information.
     """
@@ -502,7 +498,6 @@ class MultidiscMetadata(Metadata):
                 with IgnoreKeyError:
                     self.tracks[-1][skey] = tag[tkey][0]
             mka_time += tag.info.length
-        self._Finalize(sumparts=False)
 
     def _GetTag(self):
         return mutagen.flac.FLAC(self.source[0])
@@ -542,12 +537,15 @@ class CueMetadata(Metadata):
             elif line.startswith("  TRACK"):
                 self.tracks.append(CueMetadata.ExtractTrackInformation(lines[i:]))
             elif not line.startswith(" "):  # Search for additional top-level tags
-                direct_tags = ["GENRE", "ISSUE_DATE", "LABEL", "VERSION", "ORIGINAL_MEDIUM", "DISC_NAME"]
-                direct_tags = {"REM {}".format(t): t for t in direct_tags}
+                remarks = ["GENRE", "ISSUE_DATE", "LABEL", "VERSION", "ORIGINAL_MEDIUM", "DISC_NAME"]
+                remarks = {"REM {}".format(t): t for t in remarks}
                 # Note that ``"REM DISC "`` has a space at the end because ``"REM DISCID"``
                 # is commonly added by CD ripping programs and this is not what we want
-                direct_tags.update({"REM DATE": "DATE_RECORDED", "REM DISC ": "PART_NUMBER",
-                                    "PERFORMER": "ARTIST", "TITLE": "TITLE"})
+                direct_tags = {"REM DATE": "DATE_RECORDED",
+                               "REM DISC ": "PART_NUMBER",
+                               "PERFORMER": "ARTIST",
+                               "TITLE": "TITLE"}
+                direct_tags.update(remarks)
                 for key, tag in direct_tags.items():
                     if line.startswith(key):
                         self[tag] = CueMetadata.ExtractProperty(line, key)
