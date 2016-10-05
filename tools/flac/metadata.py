@@ -65,7 +65,7 @@ class Metadata(dict): #metaclass=abc.ABCMeta
         self._PullHDFormat(tag.info)
         self._MergeWithArgs(args)
         self._Validate()
-        self._Finalize(self.__class__.sumparts)
+        self._Finalize()
 
     # @abc.abstractmethod
     def _initialize(self, source, args):
@@ -184,14 +184,14 @@ class Metadata(dict): #metaclass=abc.ABCMeta
         for key, value in self.items():
             self[key] = value.strip()
 
-    def _Finalize(self, sumparts):
+    def _Finalize(self):
         """The ``sumparts`` argument is a bool which controls whether the output
         should contain the "TOTAL_PARTS" field which specifies the number of
         tracks.  This method also ensures the "DATE_RECORDED" field is a 4-digit
         year.
         """
-        logging.debug("Sumparts = %s", sumparts)
-        if sumparts:
+        logging.debug("Sumparts = %s", self.sumparts)
+        if self.sumparts:
             # Because some files may have corresponded to subtracks of a single logical
             # track, it's possible that the number of items in ``self.tracks`` is greater
             # than the actual number of tracks, so the correct thing to do is take
@@ -201,10 +201,14 @@ class Metadata(dict): #metaclass=abc.ABCMeta
         elif "TOTAL_PARTS" in self:
             logging.debug("Deleting 'TOTAL_PARTS'")
             del self["TOTAL_PARTS"]
+        else:
+            logging.debug("Not summing parts, and 'TOTAL_PARTS' doesn't exist")
         if len(self["DATE_RECORDED"]) != 4:
+            logging.debug("Improper date found %s", self["DATE_RECORDED"])
             year = re.split("-|/|\.", self["DATE_RECORDED"])
             for y in year:
                 if len(y) == 4:
+                    logging.debug("Found year %s", y)
                     self["DATE_RECORDED"] = y
                     break
             else:
