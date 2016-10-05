@@ -433,14 +433,15 @@ class AlbumMetadata(Metadata):
                 continue
             tag = mutagen.flac.FLAC(f)
             try:
-                self.tracks.append({"title": tag["TITLE"][0],
-                                    "track": tag["TRACKNUMBER"][0],
-                                    "start_time": mka_time.MKACode()})
+                track = {"title": tag["TITLE"][0],
+                         "track": tag["TRACKNUMBER"][0],
+                         "start_time": mka_time.MKACode()}
             except KeyError as key:
                 raise TagNotFoundError("{} doesn't contain key {}".format(f, key))
             for t in ["SIDE", "SUBTITLE", "SUBINDEX", "PHASE"]:
                 with IgnoreKeyError:
-                    self.tracks[-1][t.lower()] = tag[t][0]
+                    track[t.lower()] = tag[t][0]
+            self.tracks.append(track)
             mka_time += tag.info.length
 
     def _GetTag(self):
@@ -467,7 +468,7 @@ class MultidiscMetadata(Metadata):
     def _initialize(self, files, args):
         # First check for multidisc mode; after this we can assume that
         #    ``args.multidisc`` is ``True``
-        if args and not args.multidisc:
+        if not args.multidisc:
             raise ValueError("Cannot use 'MultidiscMetadata' in non-multidisc mode, use 'AlbumMetadata'")
 
         # Pull in album level data and store it in the ``dict`` component of ``self``
@@ -483,9 +484,9 @@ class MultidiscMetadata(Metadata):
                 continue
             tag = mutagen.flac.FLAC(f)
             try:
-                self.tracks.append({"title": tag["TITLE"][0],
-                                    "track": tag["TRACKNUMBER"][0],
-                                    "start_time": mka_time.MKACode()})
+                track = {"title": tag["TITLE"][0],
+                         "track": tag["TRACKNUMBER"][0],
+                         "start_time": mka_time.MKACode()}
             except KeyError as key:
                 raise TagNotFoundError("{} doesn't contain key {}".format(f, key))
             tags = {"disc": "DISCNUMBER",
@@ -496,7 +497,8 @@ class MultidiscMetadata(Metadata):
                     "phase": "PHASE"}
             for skey, tkey in tags.items():
                 with IgnoreKeyError:
-                    self.tracks[-1][skey] = tag[tkey][0]
+                    track[skey] = tag[tkey][0]
+            self.tracks.append(track)
             mka_time += tag.info.length
 
     def _GetTag(self):
