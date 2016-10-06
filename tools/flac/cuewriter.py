@@ -1,13 +1,16 @@
-import os
 import atexit
+import contextlib
+import os
 from logging import getLogger
 
 import mutagen.flac
 
-from tools.util import ext, flacutil, time
+from tools.util import ext, flacutil, namegen, time
 
 logging = getLogger(__name__)
+IgnoreKeyError = contextlib.suppress(KeyError)
 
+valid_tags = ["GENRE", "VERSION", "DISC_NAME", "LABEL", "ISSUE_DATE"]
 
 class CueSheet:
     """Class which accepts a list of FLAC file names and a
@@ -18,11 +21,12 @@ class CueSheet:
     to CD with minimal effort.
     """
 
+    # TODO: This doesn't need ``files`` as we cau use ``mdata.source``
     def __init__(self, files, mdata):
         self.files = files
         self.metadata = mdata
         self.mergedfile = mdata.GetOutputFilename()
-        self.outputname = "{}.".format(os.path.splitext(self.mergedfile)[0], ext.CUE)
+        self.outputname = namegen.GetNamegen(self.mergedfile)(ext.CUE)
         self.cuesheet = []
         self.CreateCUE()
         atexit.register(CueSheet.Clean, self)
@@ -33,10 +37,12 @@ class CueSheet:
             os.unlink(self.outputname)
 
     def CreateCUE(self):
-        self.cuesheet.append('PERFORMER "{}"'.format(self.metadata['ARTIST']))
-        self.cuesheet.append('TITLE "{}"'.format(self.metadata['TITLE']))
-        self.cuesheet.append('REM GENRE "{}"'.format(self.metadata['GENRE']))
-        self.cuesheet.append('REM DATE "{}"'.format(self.metadata['DATE_RECORDED']))
+        self.cuesheet.append('PERFORMER "{}"'.format(self.metadata["ARTIST"]))
+        self.cuesheet.append('TITLE "{}"'.format(self.metadata["TITLE"]))
+        self.cuesheet.append('REM DATE "{}"'.format(self.metadata["DATE_RECORDED"]))
+        for tag in valid_tags:
+            with IgnoreKeyError:
+                self.cuesheet.append('REM {} "{}"'.format(tag, self.metadata[tag]))
         self.cuesheet.append('FILE "{}" WAVE'.format(self.mergedfile))
 
         track_time = time.Time()
@@ -44,11 +50,11 @@ class CueSheet:
             data = mutagen.flac.FLAC(f)
             self.cuesheet.append('  TRACK {} AUDIO'.format(str(track_num + 1).zfill(2)))
             try:
-                title = '{}: {}'.format(data['TITLE'][0], data['SUBTITLE'][0])
+                title = '{}: {}'.format(data["TITLE"][0], data["SUBTITLE"][0])
             except KeyError:
-                title = data['TITLE'][0]
+                title = data["TITLE"][0]
             self.cuesheet.append('    TITLE "{}"'.format(title))
-            self.cuesheet.append('    PERFORMER "{}"'.format(self.metadata['ARTIST']))
+            self.cuesheet.append('    PERFORMER "{}"'.format(self.metadata["ARTIST"]))
             self.cuesheet.append('    INDEX 01 {}'.format(track_time.CueCode()))
             track_time += data.info.length  # seconds
 
@@ -79,7 +85,8 @@ class CueFilenameChanger:
         if cuesheet != outputcue:
             logging.info("%s -> %s", cuesheet, outputcue)
             self.createdfile = outputcue
-            self._write(cuesheet)
+            self._create(cuesheet)
+            self._write()
         atexit.register(CueFilenameChanger.Clean, self)
 
     def Clean(self):
@@ -87,10 +94,22 @@ class CueFilenameChanger:
             logging.info("Deleting %s", self.createdfile)
             os.unlink(self.createdfile)
 
-    def _write(self, source_cue):
+    @staticmethod
+    def _keep_line(line):
+        line = line.lstrip()
+        if not line.startswith("REM"):
+            return True
+        line = line[4:]
+        for tag in ["DATE"] + valid_tags:
+            if line.startswith(tag):
+                return True
+        return False
+
+    def _create(self, source_cue):
         with open(source_cue) as source_cue:
             self.lines = source_cue.read().split("\n")
-        self.lines = [x for x in self.lines if not x.lstrip().startswith("REM")]
+        self.lines = filter(CueFilenameChanger._keep_line, self.lines)
+        self.lines = list(self.lines)
         for idx, line in enumerate(self.lines):
             if line.startswith("FILE "):
                 filename = self.createdfile.replace(ext.CUE, ext.WAV)
@@ -102,7 +121,9 @@ class CueFilenameChanger:
                     self.lines[idx] = '{} "{}"'.format(line[0].rstrip(), line[1].strip())
                 else:
                     self.lines[idx] = None
-        self.lines = [x for x in self.lines if x]
+        self.lines = filter(None, self.lines)
+
+    def _write(self):
         with open(self.createdfile, "w") as outputcue:
             outputcue.write('\n'.join(self.lines))
             outputcue.write('\n')
