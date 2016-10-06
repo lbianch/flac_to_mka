@@ -1,4 +1,4 @@
-# flac_to_mka
+# FLAC to Matroska Audio Converter
 
 
 ## Using Matroska Audio with foobar2000:
