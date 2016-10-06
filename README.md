@@ -88,11 +88,11 @@ Artist
 For a 2 CD release with separate disc names, a label, and issue date:
 ```
 Artist
-    + Date - Album
-      + Issue Date - Label [44.1kHz/16 CD FLAC]
-        + Disc 1 - Disc 1 Name
-          + 1.01 - Track 1 
-          ...
-        + Disc 2 - Disc 2 Name
-          + 2.01 - Track 1
+  + Date - Album
+    + Issue Date - Label [44.1kHz/16 CD FLAC]
+      + Disc 1 - Disc 1 Name
+        + 1.01 - Track 1 
+        ...
+      + Disc 2 - Disc 2 Name
+        + 2.01 - Track 1
 ```
