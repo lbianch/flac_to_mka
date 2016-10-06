@@ -14,7 +14,7 @@ For a directory with FLAC files, an optional ``--multidisc`` parameter may be pa
 ### Artwork
 This program requires artwork to be present for each Matroska Audio file.  With an input directory, the directory is searched for JPG, JPEG, and PNG files.  If multiple files are found, the highest resolution image is used.  Only images which are roughly square (aspect ratio between 0.99 and 1.01) can be automatically used.  If no artwork is found in the directory, then the (first) FLAC file is checked for embedded artwork, requiring the same roughly square aspect ratio.
 
-If the only artwork found is under 500 pixels wide then production will abort.  If that artwork truly is the artwork wanted, then the `--image` parameter may be used to force the artwork to be used, which also bypasses the aspect ratio requirement.
+If the only artwork found is under 500 pixels wide then production will abort.  If that artwork truly is wanted, then the `--image` parameter may be used to force the artwork to be used, which also bypasses the aspect ratio requirement.
 
 ### Supported Tags
 Supported collection-level FLAC tags:
