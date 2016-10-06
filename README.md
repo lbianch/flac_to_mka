@@ -17,6 +17,8 @@ This program requires artwork to be present for each Matroska Audio file.  With 
 If the only artwork found is under 500 pixels wide then production will abort.  If that artwork truly is wanted, then the `--image` parameter may be used to force the artwork to be used, which also bypasses the aspect ratio requirement.
 
 ### Supported Tags
+With the `--multidisc` parameter, supported tags are logically divided into three levels.  When this mode is not used, the collection-level and "DISCNUMBER' tags merge into the disc-level.
+
 Supported collection-level FLAC tags:
 
  * ARTIST
