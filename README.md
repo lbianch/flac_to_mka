@@ -7,7 +7,7 @@
 ### Modes
 The program supports two kinds of input, FLAC + CUE or a directory with FLAC files.  For a directory with multiple FLAC + CUE files, an explicit CUE filename may be given.  
 
-When the input files are CD specification (44.1kHz, 16-bit, 2 channels), a CUE file is either created or a new CUE file is created from the original, and attached to the Matroska Audio output.  This makes it simple to write to a CD as one only needs to extract the CUE file and the FLAC audio track from the Matroska Audio to recover FLAC + CUE.  Note that when a directory of FLAC files in the CD format is used, the CUE file is generated automatically.  CUE file generation is skipped for audio files which use another sample rate, bit-depth, or which are not stereo.
+When the input files are CD specification (44.1kHz, 16-bit, 2 channels), a CUE file is either created or a new CUE file is created from the original, and attached to the Matroska Audio output.  This makes it simple to write to a CD as one only needs to extract the CUE file and the FLAC audio track from the Matroska Audio to recover FLAC + CUE.  Note that when a directory of FLAC files in the CD format is used, the CUE file is generated automatically.  CUE file generation is skipped for audio files which use another sample rate, bit-depth, or which are not stereo as they are not writable to CD.
 
 For a directory with FLAC files, an optional ``--multidisc`` parameter may be passed.  In this mode, a directory which contains files from multiple discs becomes merged into a single file.  In this mode, a CUE file is not created as such output is not writable to CD.
 
