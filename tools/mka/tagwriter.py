@@ -53,7 +53,7 @@ class MatroskaTagger:
         return str(self.ids[num])
     
     def CreateTotalDiscTag(self):
-        if self.metadata.discs < 2:
+        if not isinstance(self.metadata, metadata.MultidiscMetadata):
             return
         tag = ET.SubElement(self.root, tags.Tag)
         MatroskaTagger.CreateNestedTag(tag, tags.Targets, tags.TargetTypeValue).text = tags.TargetTypes.MultiDisc
@@ -70,7 +70,7 @@ class MatroskaTagger:
     def CreateArtistTag(self):
         tag = ET.SubElement(self.root, tags.Tag)
         MatroskaTagger.CreateNestedTag(tag, tags.Targets, tags.TargetTypeValue).text = tags.TargetTypes.Track
-        MatroskaTagger.CreateSimpleTag(tag, tags.Artist, self.metadata["ARTIST"])
+        MatroskaTagger.CreateSimpleTag(tag, "ARTIST", self.metadata["ARTIST"])
 
     def CreateDiscTags(self):
         # Execution of ``CreateTags`` wants this function to exist for a subclass
@@ -113,17 +113,13 @@ class MultiDiscTagger(MatroskaTagger):
         # NB: super().__init__ will call ``CreateTags``, so this needs to be defined
         #  before super().__init__ as ``CreateDiscTags`` is called via ``CreateTags``
         #  and ``CreateDiscTags`` relies on ``self.discinfo``
-        def GetDisc(track_info):
-            try:
-                return '{}{}'.format(track_info['disc'], track_info['side'])
-            except KeyError:
-                return track_info['disc']
 
-        # Create ``self.discinfo`` storing a mapping from discs to ``dict``
+        # Create ``self.discinfo`` storing a mapping from discs to ``list[dict]``
         # of the form ``{'index': chapter_index, 'track': track_number}``
+        # slightly more readable than ``{chapter_index: track_number}``
         self.discinfo = defaultdict(list)
         for chapter_idx, track in enumerate(mdata.tracks):
-            disc = GetDisc(track)
+            disc = metadata.GetDisc(track)
             data = {'index': chapter_idx, 'track': track['track']}
             self.discinfo[disc].append(data)
         # Because there may be sides, this isn't just ``len(self.discinfo)``
@@ -142,6 +138,9 @@ class MultiDiscTagger(MatroskaTagger):
         # This needs to find the number of tracks for this disc
         total_parts = max(int(ch['track']) for ch in chapter_idxs)
         self.CreateSimpleTag(node, tags.TotalParts, str(total_parts))
+        if disc_number in self.metadata.disc_data:
+            name = self.metadata.disc_data[disc_number]
+            self.CreateSimpleTag(node, "DISC_NAME", name)
 
     def CreateDiscTags(self):
         for disc in sorted(self.discinfo):

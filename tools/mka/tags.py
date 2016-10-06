@@ -15,12 +15,14 @@ String = "String"
 # Elements for MatroskaTagger
 TotalParts = "TOTAL_PARTS"
 PartNumber = "PART_NUMBER"
-Artist = "ARTIST"
-Title = "TITLE"
-Side = "SIDE"
-Subindex = "SUBINDEX"
-Phase = "PHASE"
-Subtitle = "SUBTITLE"
+#Artist = "ARTIST"
+#Title = "TITLE"
+#Side = "SIDE"
+#Subindex = "SUBINDEX"
+#Phase = "PHASE"
+#Subtitle = "SUBTITLE"
+#Version = "VERSION"
+#DiscName = "DISC_NAME"
 
 # High level tags for MatroskaChapters
 Chapters = "Chapters"
@@ -34,12 +36,12 @@ ChapterDisplay = "ChapterDisplay"
 ChapterString = "ChapterString"
 ChapterTime = "ChapterTimeStart"
 
-track_tags = {'title': Title,
-              'track': PartNumber,
-              'side': Side,
-              'subindex': Subindex,
-              'subtitle': Subtitle,
-              'phase': Phase}
+track_tags = {"title": "TITLE",
+              "track": "PART_NUMBER",
+              "side": "SIDE",
+              "subindex": "SUBINDEX",
+              "subtitle": "SUBTITLE",
+              "phase": "PHASE"}
 
 class TargetTypes:
     # These are only in a class to create scope

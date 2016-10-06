@@ -431,7 +431,7 @@ class AlbumMetadata(Metadata):
         if args.multidisc:
             raise ValueError("Cannot use 'AlbumMetadata' in multidisc mode, use 'MultidiscMetadata'")
 
-        # Pull in album level data and store it in the ``dict`` component of ``self``
+        # Pull in album level data
         data = _GetAlbumLevelMetadata(self.source)
         self.data.update(data)
 
@@ -465,38 +465,55 @@ class AlbumMetadata(Metadata):
         return mutagen.flac.FLAC(self.source[0])
 
 
+def GetDisc(track_info):
+    try:
+        return '{}{}'.format(track_info['disc'], track_info['side'])
+    except KeyError:
+        return track_info['disc']
+
+
 class MultidiscMetadata(Metadata):
     """Metadata class holding information for a collection of FLAC files
     from multiple discs.  Searches through the metadata tags in each FLAC
     file to determine information about them then build up the ``Metadata``
     structure.
-    Supported collection-level FLAC tags:
-      DISCTOTAL
-    Supported disc-level FLAC tags:
-      ARTIST, ALBUM TITLE, DATE, GENRE, LABEL, ISSUE_DATE, VERSION, ORIGINAL_MEDIUM
-    Supported track-level FLAC tags:
-      TITLE, TRACKNUMBER, SIDE, DISC_NAME, DISCNUMBER, SUBINDEX, SUBTITLE, PHASE
+    Supported collection-level FLAC tags (``self.data``):
+      DISCTOTAL, ARTIST, ALBUM TITLE, DATE, GENRE, LABEL,
+      ISSUE_DATE,  ORIGINAL_MEDIUM, VERSION
+    Supported disc-level FLAC tags (``self.disc_data``):
+      DISC_NAME, (Number of tracks is calculated automatically)
+    Supported track-level FLAC tags (``self.tracks``):
+      TITLE, TRACKNUMBER, SIDE, DISCNUMBER, SUBINDEX, SUBTITLE, PHASE
 
     See parent class ``Metadata`` for more information.
     """
+
+    def __init__(self, source, args):
+        self.disc_data = {}
+        super().__init__(source, args)
 
     @property
     def sumparts(self):
         return False
 
     def _initialize(self, args):
+        logging.debug('tools.flac.metadata.MultidiscMetadata._initialize')
         # First check for multidisc mode; after this we can assume that
         #    ``args.multidisc`` is ``True``
         if not args.multidisc:
             raise ValueError("Cannot use 'MultidiscMetadata' in non-multidisc mode, use 'AlbumMetadata'")
 
-        # Pull in album level data and store it in the ``dict`` component of ``self``
+        # Pull in album level data, handling "DISC_NAME" at the
+        # disc level, rather than the collection level
         data = _GetAlbumLevelMetadata(self.source)
+        with IgnoreKeyError:
+            del data["DISC_NAME"]
         self.data.update(data)
 
-        # Now pull track-level information which varies from file to file
-        # This is essentially the track (sub)title, start time, disc number
-        # (if running in multidisc mode), side (for Vinyl sources)
+        # Now pull track and disc-level information which varies from file to file
+        # Track level: track title, subtitle/subindex, start time, disc number
+        #              side, and phase
+        # Disc level: disc name
         mka_time = FLACTime()
         for f in sorted(self.source):
             if self.GetOutputFilename() in f.replace(ext.FLAC, ext.WAV):
@@ -509,7 +526,6 @@ class MultidiscMetadata(Metadata):
             except KeyError as key:
                 raise TagNotFoundError("{} doesn't contain key {}".format(f, key))
             tags = {"disc": "DISCNUMBER",
-                    "disc_name": "DISC_NAME",
                     "subindex": "SUBINDEX",
                     "subtitle": "SUBTITLE",
                     "side": "SIDE",
@@ -517,11 +533,19 @@ class MultidiscMetadata(Metadata):
             for skey, tkey in tags.items():
                 with IgnoreKeyError:
                     track[skey] = tag[tkey][0]
+            if GetDisc(track) not in self.disc_data:
+                with IgnoreKeyError:
+                    self.disc_data[GetDisc(track)] = tag["DISC_NAME"][0]
             self.tracks.append(track)
             mka_time += tag.info.length
 
     def _GetTag(self):
         return mutagen.flac.FLAC(self.source[0])
+
+    def _PrintMetadata(self):
+        Metadata._PrintMetadata(self)
+        for disc, name in sorted(self.disc_data.items()):
+            print("Disc {} Name: {}".format(disc, name))
 
 
 class CueMetadata(Metadata):
