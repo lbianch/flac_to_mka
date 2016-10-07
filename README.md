@@ -2,6 +2,12 @@
 
 ## Setup
 
+### External Tools
+This project depends upon SoX, FLAC (plus metaflac), and Matroska Tools.  On Windows, these are by default expected in the `tools\standalone` directory while on Linux they are expected to be available via `${PATH}`.  This can be overridden via `config.yaml`.
+
+### Configuration
+A YAML configuration file, `config.yaml`, is used to control the paths to the external tools as well as some machine-specific parameters.  Documentation is found in the configuration file.
+
 ## Usage
 
 ### Modes
