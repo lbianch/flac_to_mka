@@ -18,6 +18,22 @@ class Time:
     def __init__(self, time=0.0):
         self.time = time
 
+    @classmethod
+    def FromCueCode(cls, time):
+        """Helper method to create a `Time` object from a CUE time code
+        Expected input is a `str` of the format 'MM:SS:FF'
+        """
+        minutes, seconds, frames = map(float, time.split(":"))
+        return cls(60. * minutes + seconds + frames / 75.)
+
+    @classmethod
+    def FromMKATime(cls, time):
+        """Helper method to create a `Time` object from a CUE time code.
+        Expected input is a `str` of the format 'HH:MM:SS.ffff'
+        """
+        hours, minutes, seconds = map(float, time.split(":"))
+        return cls(3600. * hours + 60. * minutes + seconds)
+
     @str_from_int
     def Hours(self):
         return self.time // 3600
@@ -60,10 +76,15 @@ def CueTimeToMKATime(cue_time):
     Expects the input parameter to be either a `str` with two colon characters
     or a type from which `Time` can be produced, ie, a `float`.
     """
-    if isinstance(cue_time, str):
-        cue_time = [float(x) for x in cue_time.split(":")]
-        minutes, seconds, frames = cue_time
-        cue_time = minutes * 60.0
-        cue_time += seconds
-        cue_time += frames / 75.0
-    return Time(cue_time).MKACode()
+    if isinstance(cue_time, float):
+        return Time(cue_time).MKACode()
+    return Time.FromCueCode(cue_time).MKACode()
+
+def MKATimeToCueTime(mka_time):
+    """Converts a time signature from 'HH:MM:SS.ffff' to a CUE time code.
+    Expects the input parameter to be either a `str` with two colon
+    characters and one period or a `float`.
+    """
+    if isinstance(mka_time, float):
+        return Time(mka_time).CueCode()
+    return Time.FromMKATime(mka_time).CueCode()

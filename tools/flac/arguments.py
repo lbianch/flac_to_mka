@@ -10,6 +10,7 @@ def ParseArguments():
     args.add_argument("--image",
                       help="Manually specify cover art file")
     args.add_argument("--forceimage",
+                      action="store_true",
                       help="Skip resolution and aspect ratio check of cover art")
     args.add_argument("--genre",
                       help="Manually specify genre")

@@ -51,13 +51,6 @@ class MatroskaTagger:
 
     def GetChapterUID(self, num):
         return str(self.ids[num])
-    
-    def CreateTotalDiscTag(self):
-        if not isinstance(self.metadata, metadata.MultidiscMetadata):
-            return
-        tag = ET.SubElement(self.root, tags.Tag)
-        MatroskaTagger.CreateNestedTag(tag, tags.Targets, tags.TargetTypeValue).text = tags.TargetTypes.MultiDisc
-        MatroskaTagger.CreateSimpleTag(tag, tags.TotalParts, str(self.metadata.discs))
 
     def CreateMetadata(self):
         discinfo = ET.SubElement(self.root, tags.Tag)
@@ -89,7 +82,6 @@ class MatroskaTagger:
                 self.CreateSimpleTag(node, tag, str(track[key]))
 
     def CreateTags(self):
-        self.CreateTotalDiscTag()
         self.CreateMetadata()
         self.CreateDiscTags()
         self.CreateArtistTag()
@@ -123,11 +115,21 @@ class MultiDiscTagger(MatroskaTagger):
             data = {'index': chapter_idx, 'track': track['track']}
             self.discinfo[disc].append(data)
         # Because there may be sides, this isn't just ``len(self.discinfo)``
-        mdata.discs = max(int(x['disc']) for x in mdata.tracks)
+        self.discs = max(int(x['disc']) for x in mdata.tracks)
         logging.debug('Disc info: %s', self.discinfo)
         super().__init__(mdata, outputname)
 
     def CreateDiscTag(self, disc_number, chapter_idxs):
+        """Creates a tag describing the disc-level data, specifically
+        the number of tracks associated with the disc, a list of chapters,
+        and the disc name.
+        Input parameter `disc_number` is a `str` which should contain only
+        numbers and the letters 'A' or 'B'.  If sides are present, they are
+        stripped.  As an example case, if this is working on a 2 LP release
+        then there are discs '1A', '1B', '2A', and '2B', and there would be
+        two entries for `PartNumber = 1` with distinct sets of chapters.
+        It is possible each side has a different disc name, if any.
+        """
         node = ET.SubElement(self.root, tags.Tag)
         targets = ET.SubElement(node, tags.Targets)
         ET.SubElement(targets, tags.TargetTypeValue).text = tags.TargetTypes.Album
@@ -145,6 +147,12 @@ class MultiDiscTagger(MatroskaTagger):
     def CreateDiscTags(self):
         for disc in sorted(self.discinfo):
             self.CreateDiscTag(disc, self.discinfo[disc])
+
+    def CreateMetadata(self):
+        tag = ET.SubElement(self.root, tags.Tag)
+        MatroskaTagger.CreateNestedTag(tag, tags.Targets, tags.TargetTypeValue).text = tags.TargetTypes.MultiDisc
+        MatroskaTagger.CreateSimpleTag(tag, tags.TotalParts, str(self.discs))
+        super().CreateMetadata()
 
 
 def CreateMatroskaTagger(args, mdata, outname=None):

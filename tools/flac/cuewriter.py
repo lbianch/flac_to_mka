@@ -3,8 +3,6 @@ import contextlib
 import os
 from logging import getLogger
 
-import mutagen.flac
-
 from tools.util import ext, flacutil, namegen, time
 
 logging = getLogger(__name__)
@@ -21,10 +19,9 @@ class CueSheet:
     to CD with minimal effort.
     """
 
-    # TODO: This doesn't need ``files`` as we cau use ``mdata.source``
-    def __init__(self, files, mdata):
-        self.files = files
+    def __init__(self, mdata):
         self.metadata = mdata
+        self.files = mdata.source
         self.mergedfile = mdata.GetOutputFilename()
         self.outputname = namegen.GetNamegen(self.mergedfile)(ext.CUE)
         self.cuesheet = []
@@ -42,21 +39,22 @@ class CueSheet:
         self.cuesheet.append('REM DATE "{}"'.format(self.metadata["DATE_RECORDED"]))
         for tag in valid_tags:
             with IgnoreKeyError:
-                self.cuesheet.append('REM {} "{}"'.format(tag, self.metadata[tag]))
+                # NB: Use `metadata.data[tag]` because it will `raise KeyError` while
+                #     `metadata[tag]` is an alias to `metadata.get(tag, '')`
+                self.cuesheet.append('REM {} "{}"'.format(tag, self.metadata.data[tag]))
         self.cuesheet.append('FILE "{}" WAVE'.format(self.mergedfile))
 
-        track_time = time.Time()
-        for track_num, f in enumerate(self.files):
-            data = mutagen.flac.FLAC(f)
+        for track_num, track in enumerate(self.metadata.tracks):
             self.cuesheet.append('  TRACK {} AUDIO'.format(str(track_num + 1).zfill(2)))
             try:
-                title = '{}: {}'.format(data["TITLE"][0], data["SUBTITLE"][0])
+                title = '{}: {}'.format(track["title"], track["subtitle"])
             except KeyError:
-                title = data["TITLE"][0]
+                title = track["title"]
             self.cuesheet.append('    TITLE "{}"'.format(title))
             self.cuesheet.append('    PERFORMER "{}"'.format(self.metadata["ARTIST"]))
-            self.cuesheet.append('    INDEX 01 {}'.format(track_time.CueCode()))
-            track_time += data.info.length  # seconds
+            # Need to convert mka time code from track["start_time"] to a CUE sheet code
+            time_code = time.MKATimeToCueTime(track["start_time"])
+            self.cuesheet.append('    INDEX 01 {}'.format(time_code))
 
     def Create(self, outputname=None):
         self.outputname = outputname or self.outputname
@@ -100,27 +98,24 @@ class CueFilenameChanger:
         if not line.startswith("REM"):
             return True
         line = line[4:]
-        for tag in ["DATE"] + valid_tags:
-            if line.startswith(tag):
-                return True
-        return False
+        return any(line.startswith(tag) for tag in ["DATE"] + valid_tags)
 
     def _create(self, source_cue):
         with open(source_cue) as source_cue:
-            self.lines = source_cue.read().split("\n")
-        self.lines = filter(CueFilenameChanger._keep_line, self.lines)
-        self.lines = list(self.lines)
-        for idx, line in enumerate(self.lines):
+            lines = source_cue.read().split("\n")
+        lines = filter(CueFilenameChanger._keep_line, lines)
+        for idx, line in enumerate(lines):
             if line.startswith("FILE "):
                 filename = self.createdfile.replace(ext.CUE, ext.WAV)
                 filename = flacutil.FileName(filename)
-                self.lines[idx] = 'FILE "{}" WAVE'.format(filename)
+                self.lines.append('FILE "{}" WAVE'.format(filename))
             elif '"' in line:
-                line = line.split('"')
-                if line[1].strip():
-                    self.lines[idx] = '{} "{}"'.format(line[0].rstrip(), line[1].strip())
-                else:
-                    self.lines[idx] = None
+                line = line.split('"')[0:2]
+                if not line[1].strip():
+                    continue
+                self.lines.append('{} "{}"'.format(*map(str.rstrip, line)))
+            else:
+                self.lines.append(line)
         self.lines = filter(None, self.lines)
 
     def _write(self):
