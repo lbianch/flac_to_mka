@@ -92,7 +92,7 @@ class Metadata(ABC):
         # Pull format information, of the form SampleRate/BitDepth [5.1|1.0]
         # If the format matches the CD specification then nothing is done
         # The result is stored in ``self["HD_FORMAT"]``
-        if info.sample_rate == 44100 and info.bits_per_sample == 16 or info.channels == 2:
+        if info.sample_rate == 44100 and info.bits_per_sample == 16 and info.channels == 2:
             return
         # This isn't a CD format
         samplerate = info.sample_rate
