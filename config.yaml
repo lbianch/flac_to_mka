@@ -26,5 +26,5 @@ Asusi7:
     Windows:
         output: D:\Music (MKA)
 COREQUAD:
-    #output: E:\Internet Downloads\Music (MKA)
-    output: G:\
+    output: E:\Internet Downloads\Music (MKA)
+    #output: G:\

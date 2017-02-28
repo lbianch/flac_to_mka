@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+import pickle
 import atexit
 from tools.flac import arguments, merger, verifier, metadata, cuewriter
 from tools.mka import arthandler, chapterwriter, createmka, tagwriter
@@ -12,8 +13,7 @@ def flac_exists(flacname, mergeflacs):
             os.unlink(flacname)
         return True
     if not mergeflacs:
-        msg = "Requested skip merge mode but file '{}' doesn't exist"
-        raise FileNotFoundError(msg.format(flacname))
+        raise FileNotFoundError(f"Requested skip merge mode but file '{flacname}' doesn't exist")
     return False
 
 
@@ -21,7 +21,7 @@ def MakeCueOrFlac(args, files, mdata, filename):
     # Produce CUE sheet and unregister cleanup to preserve it
     if not args.no_confirm and not mdata.Confirm():
         return
-    cuewriter.CueSheet(files, mdata).Create(filename(ext.CUE))
+    cuewriter.CueSheet(mdata).Create(filename(ext.CUE))
     atexit.unregister(cuewriter.CueSheet.Clean)
     if args.cueflac:
         # Also merge the flac and unregister cleanup
@@ -35,7 +35,7 @@ def MakeMatroska(args, files, mdata, filename):
         return
     # Produce CUE sheet (CD only), tags, chapters
     if not args.multidisc and verifier.FLACVerifier(files[0]).IsCD():
-        cuewriter.CueSheet(files, mdata).Create(filename(ext.CUE))
+        cuewriter.CueSheet(mdata).Create(filename(ext.CUE))
     tagwriter.CreateMatroskaTagger(args, mdata).Create(filename(ext.XML))
     chapterwriter.MatroskaChapters(mdata).Create(filename(ext.CHAPTERS))
     # Perform merging of FLAC files
@@ -45,6 +45,8 @@ def MakeMatroska(args, files, mdata, filename):
         # to use CUE file MKA creation mode and shouldn't be in this function
         merger.FLACMerger(files).Create(filename(ext.FLAC))
     createmka.MKACreator(args, mdata, filename, artwork).Create()
+    with open(filename("pickle"), 'wb') as f:
+        pickle.dump(mdata, f)
 
 
 def main():

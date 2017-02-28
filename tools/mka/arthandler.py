@@ -43,7 +43,7 @@ class Artwork:
             elif os.path.isfile(os.path.join(args.directory, args.image)):
                 self.image = os.path.join(args.directory, args.image)
             else:
-                raise RuntimeError("Specified image {} not found".format(args.image))
+                raise RuntimeError(f"Specified image {args.image} not found")
             # Sanity check on specified image, use same requirements or require
             # user manually override this check when specifying image
             if not (Artwork._UsableResolution(self.image) or args.forceimage):
@@ -135,7 +135,7 @@ class Artwork:
         #     If not it will cause an ``IndexError``.
         exclude = [self.image.replace(ext.JPG, ext.FLAC)] if excludemerged else []
         flac_file = flacutil.GetFilenames(ext.FLAC, directory, exclude=exclude)[0]
-        cmd = [flacutil.METAFLAC_EXE, '--export-picture-to={}'.format(self.image), flac_file]
+        cmd = [flacutil.METAFLAC_EXE, f'--export-picture-to={self.image}', flac_file]
         try:
             subprocess.run(cmd, check=True)
         except subprocess.CalledProcessError:
@@ -145,7 +145,7 @@ class Artwork:
                 # Actually contained a PNG image
                 self._SwitchToPNG()
             elif img.format != "JPEG":
-                raise InvalidArtworkFormatError("Expected JPG/PNG artwork, found {}".format(img.format))
+                raise InvalidArtworkFormatError(f"Expected JPG/PNG artwork, found {img.format}")
         # Returns a tuple of ``(bool, int)`` describing whether to use the image
         # and if it is usable, the resolution (width).  Here we only need the boolean
         # status of whether to use the image or not, so we test on the first element.

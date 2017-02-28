@@ -26,7 +26,7 @@ def DirectoryName(f):
 
 def FileName(f):
     if os.path.isdir(f):
-        raise RuntimeError("Can't obtain filename from directory {}".format(f))
+        raise RuntimeError(f"Can't obtain filename from directory {f}")
     return os.path.basename(f)
 
 

@@ -32,11 +32,11 @@ class FLACVerifier:
         # And a bit depth of either 16 or 24 bits
         info = mutagen.flac.FLAC(info).info
         if info.sample_rate not in [44100, 48000, 88200, 96000, 176400, 192000]:
-            raise RuntimeError("Invalid sample rate in {} of {}".format(info, info.sample_rate))
+            raise RuntimeError(f"Invalid sample rate in {info} of {info.sample_rate}")
         if info.channels not in [1, 2, 6]:
-            raise RuntimeError("Invalid channels in {} of {}".format(info, info.channels))
+            raise RuntimeError(f"Invalid channels in {info} of {info.channels}")
         if info.bits_per_sample not in [16, 24]:
-            raise RuntimeError("Invalid bitdepth in {} of {}".format(info, info.bits_per_sample))
+            raise RuntimeError(f"Invalid bitdepth in {info} of {info.bits_per_sample}")
         self.ExpectedFreq = info.sample_rate
         self.ExpectedChan = info.channels
         self.ExpectedBits = info.bits_per_sample
@@ -45,14 +45,14 @@ class FLACVerifier:
         if not self:
             raise RuntimeError("Must call _load_file before _verify_file")
         if info.sample_rate != self.ExpectedFreq:
-            err = "Mismatched sample rate in {}, expected {} received {}"
-            raise RuntimeError(err.format(filename, self.ExpectedFreq, info.sample_rate))
+            err = f"Mismatched sample rate in {filename}, expected {self.ExpectedFreq} received {info.sample_rate}"
+            raise RuntimeError(err)
         if info.channels != self.ExpectedChan:
-            err = "Mismatched channels in {}, expected {} received {}"
-            raise RuntimeError(err.format(filename, self.ExpectedChan, info.channels))
+            err = f"Mismatched channels in {filename}, expected {self.ExpectedChan} received {info.channels}"
+            raise RuntimeError(err)
         if info.bits_per_sample != self.ExpectedBits:
-            err = "Mismatched bit depth in {}, expected {} received {}"
-            raise RuntimeError(err.format(filename, self.ExpectedBits, info.bits_per_sample))
+            err = f"Mismatched bit depth in {filename}, expected {self.ExpectedBits} received {info.bits_per_sample}"
+            raise RuntimeError(err)
 
     def _KHz(self):
         if not self:
@@ -67,10 +67,7 @@ class FLACVerifier:
     def __str__(self):
         if not self:
             return "FLACVerifier()"
-        data = {'frequency': "{}kHz".format(self._KHz()),
-                'channels': self._Channels(),
-                'bits': "{}-bit FLAC".format(self.ExpectedBits)}
-        return "FLACVerifier<{frequency} {channels} {bits}>".format(**data)
+        return f"FLACVerifier<{self._KHz()}kHz {self._Channels()} {self.ExpectedBits}-bit FLAC>"
 
     def IsCD(self):
         return self.ExpectedFreq == 44100 and self.ExpectedChan == 2 and self.ExpectedBits == 16

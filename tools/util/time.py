@@ -12,8 +12,9 @@ def str_from_int(func):
 
 class Time:
     """A class used to generate CUE and Matroska time codes.
-    The constructor accepts a parameter, ``time`` which defaults
-    to ``0.0`` and should be a real number.
+    The constructor accepts a parameter, ``time`` which
+    defaults to ``0.0`` and should be a floating point
+    number representing seconds.
     """
     def __init__(self, time=0.0):
         self.time = time
@@ -61,10 +62,10 @@ class Time:
         return str(self.time % 1)[2:11].ljust(9, '0')
 
     def CueCode(self):
-        return "{}:{}:{}".format(self.CueMinutes(), self.Seconds(), self.Frames())
+        return f"{self.CueMinutes()}:{self.Seconds()}:{self.Frames()}"
 
     def MKACode(self):
-        return "{}:{}:{}.{}".format(self.Hours(), self.Minutes(), self.Seconds(), self.Fractional())
+        return f"{self.Hours()}:{self.Minutes()}:{self.Seconds()}.{self.Fractional()}"
 
     def __iadd__(self, t):
         self.time += t.time if isinstance(t, Time) else t
@@ -79,6 +80,7 @@ def CueTimeToMKATime(cue_time):
     if isinstance(cue_time, float):
         return Time(cue_time).MKACode()
     return Time.FromCueCode(cue_time).MKACode()
+
 
 def MKATimeToCueTime(mka_time):
     """Converts a time signature from 'HH:MM:SS.ffff' to a CUE time code.

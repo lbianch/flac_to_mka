@@ -38,7 +38,7 @@ class MKACreator:
         # If we were given an explicit output file name, use it
         if args.output and os.path.isfile(args.output):
             return args.output
-        mkafile = "{} [FLAC]{}".format(basename, ext.MKA)
+        mkafile = f"{basename} [FLAC]{ext.MKA}"
         # If we were given an explicit output directory, use that
         if args.output and os.path.isdir(args.output):
             return os.path.join(args.output, mkafile)
@@ -58,5 +58,5 @@ class MKACreator:
         try:
             file_type = file_types[self.artwork.ImageType()]
         except KeyError:
-            raise ValueError("Expected 'jpg' or 'png', but found '{}'".format(self.artwork.ImageType()))
+            raise ValueError(f"Expected 'jpg' or 'png', but found '{self.artwork.ImageType()}'")
         return MKACreator._AttachFile(file_type[0], self.artwork.image, self.sourcename.EmbedName(file_type[1]))

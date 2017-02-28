@@ -71,7 +71,7 @@ class MatroskaTagger:
 
     def CreateTrackTag(self, trackno, track):
         if not isinstance(track, dict):
-            raise TypeError("Expected track to be a dict, was {}".format(type(track)))
+            raise TypeError(f"Expected track to be a dict, was {type(track)}")
         logging.debug('Creating tag for track: %s', track)
         node = ET.SubElement(self.root, tags.Tag)
         targets = ET.SubElement(node, tags.Targets)

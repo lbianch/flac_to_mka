@@ -86,7 +86,7 @@ class Metadata(ABC):
         elif info.channels == 1:
             self.channels = '1.0'
         elif info.channels != 2:
-            raise RuntimeError("Channels {} not supported".format(info.channels))
+            raise RuntimeError(f"Channels {info.channels} not supported")
 
     def _PullHDFormat(self, info):
         # Pull format information, of the form SampleRate/BitDepth [5.1|1.0]
@@ -97,8 +97,7 @@ class Metadata(ABC):
         # This isn't a CD format
         samplerate = info.sample_rate
         # Want 44.1kHz for 44100, but 48kHz for 48000 rather than 48.0kHz
-        hdformat = [str(samplerate/1000) if samplerate % 1000 else str(samplerate//1000),
-                    "/{}".format(info.bits_per_sample)]
+        hdformat = [str(samplerate/1000) if samplerate % 1000 else str(samplerate//1000), f"/{info.bits_per_sample}"]
         if info.channels == 6:
             hdformat.append(" 5.1")
         elif info.channels == 1:
@@ -185,8 +184,7 @@ class Metadata(ABC):
                          "DATE_RECORDED": "year"}
         for tag in required_tags:
             if self[tag] is None:
-                err = "Incomplete metadata - missing {}"
-                raise TagNotFoundError(err.format(required_tags[tag]))
+                raise TagNotFoundError(f"Incomplete metadata - missing {required_tags[tag]}")
         for key, value in self.items():
             self[key] = value.strip()
 
@@ -219,7 +217,7 @@ class Metadata(ABC):
                     self["DATE_RECORDED"] = y
                     break
             else:
-                raise RuntimeError("Can't parse date {}".format(self["DATE_RECORDED"]))
+                raise RuntimeError(f"Can't parse date {self['DATE_RECORDED']}")
 
     def __getitem__(self, key):
         """If the ``key`` doesn't exist, the empty string is returned.
@@ -278,7 +276,7 @@ class Metadata(ABC):
         # Output for an entry in ``s`` of ("Year", "2016") with a ``max_len`` of 10
         # would be: '= Year .....: 2016'
         def line(k, v):
-            return "{}: {}".format(k.ljust(max_len, '.'), v)
+            return f"{k.ljust(max_len, '.')}: {v}"
 
         s = [line(*x) for x in s.items()]
         # Now we can reuse ``max_len`` to mean the longest fully formatted line
@@ -286,7 +284,7 @@ class Metadata(ABC):
         # form a border
         max_len = max(len(x) for x in s)
         for i in range(len(s)):
-            s[i] = '= {} ='.format(s[i].ljust(max_len))
+            s[i] = f'= {s[i].ljust(max_len)} ='
         max_len += 4
         s = [" ALBUM INFORMATION ".center(max_len, "=")] + s + ["=" * max_len]
         return "\n".join(s)
@@ -307,33 +305,32 @@ class Metadata(ABC):
             logging.debug('Forced filename or pre-computed file name = %s', self.filename)
             return self.filename
 
-        tags = {}
+        tags = dict()
 
         # Base tag
-        base = "{s[ARTIST]} - {s[DATE_RECORDED]} - {s[TITLE]}"
-        tags['base'] = base.format(s=self)
+        tags['base'] = f"{self['ARTIST']} - {self['DATE_RECORDED']} - {self['TITLE']}"
 
         # Setup version subinfo
-        tags['version'] = " ({})".format(self["VERSION"]) if self["VERSION"] else ""
+        tags['version'] = f" ({self['VERSION']})" if self["VERSION"] else ""
 
         # Setup label / release subinfo
         channels = self.channels if self.channels != '2.0' else ''
         if self["ORIGINAL_MEDIUM"] == "CD":
-            labeltag = "{s[LABEL]} {s[ISSUE_DATE]} {0}"
+            labeltag = f"{self['LABEL']} {self['ISSUE_DATE']} {channels}"
         else:
-            labeltag = "{s[LABEL]} {s[ISSUE_DATE]} {s[ORIGINAL_MEDIUM]} {0}"
-        labeltag = labeltag.format(channels, s=self).strip()
-        tags['label'] = labeltag and " ({})".format(labeltag)
+            labeltag = f"{self['LABEL']} {self['ISSUE_DATE']} {self['ORIGINAL_MEDIUM']} {channels}"
+        labeltag = labeltag.strip()
+        tags['label'] = labeltag and f" ({labeltag})"
 
         # Setup disc tag
         if self["PART_NUMBER"]:
-            disctag = " (Disc {s[PART_NUMBER]}) {s[DISC_NAME]}"
+            disctag = f" (Disc {self['PART_NUMBER']}) {self['DISC_NAME']}"
         else:
-            disctag = " {s[DISC_NAME]}"
-        tags['disc'] = disctag.format(s=self).rstrip()
+            disctag = f" {self['DISC_NAME']}"
+        tags['disc'] = disctag.rstrip()
 
         # Merge into filename
-        filename = '{base}{version}{disc}{label}{0}'.format(ext.WAV, **tags)
+        filename = f"{tags['base']}{tags['version']}{tags['disc']}{tags['label']}{ext.WAV}"
         # Replace invalid characters with either a dash or remove them
         filename = re.compile("[<>:/\\\\]").sub("-", filename)
         filename = re.compile("[|?*]").sub("", filename)
@@ -347,24 +344,24 @@ class Metadata(ABC):
     def _PrintMetadata(self):
         print(str(self))
         for trackno, track in enumerate(self.tracks):
-            output = ["File {}:".format(str(trackno + 1).zfill(2))]
+            output = [f"File {str(trackno + 1).zfill(2)}:"]
             with IgnoreKeyError:
-                output += ['Disc {}'.format(track['disc'])]
+                output.append(f"Disc {track['disc']}")
             with IgnoreKeyError:
-                output += ['Side {}'.format(track['side'])]
-            output += ['Track {}'.format(track['track'].ljust(2))]
+                output.append(f"Side {track['side']}")
+            output.append(f"Track {track['track'].ljust(2)}")
             with IgnoreKeyError:
-                output += ['Phase {}'.format(track['phase'])]
+                output.append(f"Phase {track['phase']}")
             with IgnoreKeyError:
-                output += ['Subindex {}'.format(track['subindex'])]
-            output += ['Time {}'.format(track['start_time'])]
+                output.append(f"Subindex {track['subindex']}")
+            output.append(f"Time {track['start_time']}")
             try:
-                output += ['"{}: {}"'.format(track['title'], track['subtitle'])]
+                output.append(f'"{track["title"]}: {track["subtitle"]}"')
             except KeyError:
-                output += ['"{}"'.format(track['title'])]
+                output.append(f'"{track["title"]}"')
             print(' '.join(output))
         filename = self.GetOutputFilename().replace(ext.WAV, ext.MKA)
-        print("Filename: {}".format(filename))
+        print("Filename:", filename)
 
     def PrintMetadata(self):
         """Formats and prints the metadata using the string
@@ -454,7 +451,7 @@ class AlbumMetadata(Metadata):
                          "track": tag["TRACKNUMBER"][0],
                          "start_time": mka_time.MKACode()}
             except KeyError as key:
-                raise TagNotFoundError("{} doesn't contain key {}".format(f, key))
+                raise TagNotFoundError(f"{f} doesn't contain key {key}")
             for t in ["SIDE", "SUBTITLE", "SUBINDEX", "PHASE"]:
                 with IgnoreKeyError:
                     track[t.lower()] = tag[t][0]
@@ -467,7 +464,7 @@ class AlbumMetadata(Metadata):
 
 def GetDisc(track_info):
     try:
-        return '{}{}'.format(track_info['disc'], track_info['side'])
+        return f"{track_info['disc']}{track_info['side']}"
     except KeyError:
         return track_info['disc']
 
@@ -524,7 +521,7 @@ class MultidiscMetadata(Metadata):
                          "track": tag["TRACKNUMBER"][0],
                          "start_time": mka_time.MKACode()}
             except KeyError as key:
-                raise TagNotFoundError("{} doesn't contain key {}".format(f, key))
+                raise TagNotFoundError(f"{f} doesn't contain key {key}")
             tags = {"disc": "DISCNUMBER",
                     "subindex": "SUBINDEX",
                     "subtitle": "SUBTITLE",
@@ -545,7 +542,7 @@ class MultidiscMetadata(Metadata):
     def _PrintMetadata(self):
         Metadata._PrintMetadata(self)
         for disc, name in sorted(self.disc_data.items()):
-            print("Disc {} Name: {}".format(disc, name))
+            print(f"Disc {disc} Name: {name}")
 
 
 class CueMetadata(Metadata):
@@ -585,7 +582,7 @@ class CueMetadata(Metadata):
                 self.tracks.append(CueMetadata.ExtractTrackInformation(lines[i:]))
             elif not line.startswith(" "):  # Search for additional top-level tags
                 remarks = ["GENRE", "ISSUE_DATE", "LABEL", "VERSION", "ORIGINAL_MEDIUM", "DISC_NAME"]
-                remarks = {"REM {}".format(t): t for t in remarks}
+                remarks = {f"REM {t}": t for t in remarks}
                 # Note that ``"REM DISC "`` has a space at the end because ``"REM DISCID"``
                 # is commonly added by CD ripping programs and this is not what we want
                 direct_tags = {"REM DATE": "DATE_RECORDED",
@@ -673,7 +670,7 @@ class CueMetadata(Metadata):
                 time_code = idx
                 break
         else:
-            raise CueFormatError('No valid time codes found for track {}'.format(data['track']))
+            raise CueFormatError(f"No valid time codes found for track {data['track']}")
         data["start_time"] = times[time_code]
         return data
 

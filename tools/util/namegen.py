@@ -23,7 +23,7 @@ class FileName:
         """
         logging.debug('Base parameter is %s', base)
         if base.rfind('.') < 0:
-            raise ValueError("Expected path to file, received {}".format(base))
+            raise ValueError(f"Expected path to file, received {base}")
         self.basename = base[0:base.rfind('.')]
         self.reserved = {}
         
@@ -39,7 +39,7 @@ class FileName:
             return self.basename
         if ext[0] == '.':
             ext = ext[1:]
-        return "{}.{}".format(self.basename, ext)
+        return f"{self.basename}.{ext}"
 
     def __setitem__(self, k, val):
         self.reserved[k.replace(".", "")] = val
@@ -52,4 +52,4 @@ def GetNamegen(param):
         return param
     if isinstance(param, str):
         return FileName(param)
-    raise TypeError("Valid inputs are ``namegen.FileName`` and ``str``, received {}".format(type(param)))
+    raise TypeError(f"Valid inputs are ``namegen.FileName`` and ``str``, received {type(param)}")

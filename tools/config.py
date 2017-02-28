@@ -27,7 +27,7 @@ def GetConfig():
         if system in config[update]:
             config.update(config[update][system])
     config = {k: v for k, v in config.items() if type(v) is not dict}
-    logging.debug('Configuration...')
+    logging.debug("Configuration...")
     for k, v in config.items():
         logging.debug("%s -> %s", k, v)
     return config

@@ -46,7 +46,7 @@ class MatroskaChapters:
         MatroskaChapters.CreateElement(node, tags.ChapterUID, self.GetChapterUID(trackno))
         MatroskaChapters.CreateElement(node, tags.ChapterPhysEquiv, tags.PhysicalEquiv.Track)
         try:
-            title = '{}: {}'.format(track['title'], track['subtitle'])
+            title = f"{track['title']}: {track['subtitle']}"
         except KeyError:
             title = track['title']
         MatroskaChapters.CreateNestedElement(node, tags.ChapterDisplay, tags.ChapterString, title)
