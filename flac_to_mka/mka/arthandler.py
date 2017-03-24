@@ -1,13 +1,15 @@
+import atexit
 import os
 import shutil
 import subprocess
-import atexit
 from logging import getLogger
 
 from PIL import Image
 
-from tools.util import flacutil, ext
-from tools.flac import metadata
+from flac_to_mka.flac import metadata
+from flac_to_mka.util import ext, flacutil
+
+
 logging = getLogger(__name__)
 
 

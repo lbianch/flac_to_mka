@@ -7,8 +7,9 @@ from logging import getLogger
 
 import mutagen.flac
 
-from tools.flac import arguments
-from tools.util import ext, time
+from flac_to_mka.flac import arguments
+from flac_to_mka.util import ext, time
+
 
 FLACTime = time.Time
 logging = getLogger(__name__)
@@ -148,9 +149,9 @@ class Metadata(ABC):
             with IgnoreKeyError:
                 del self["PART_NUMBER"]
         # Manually overriding the output file name is handled via a flag
-        if args.output:
-            self.filename = args.output
-            self.forced_filename = True
+        #if args.output:
+        #    self.filename = args.output
+        #    self.forced_filename = True
         self._Validate()
 
     def _Validate(self):
@@ -174,6 +175,10 @@ class Metadata(ABC):
         # Ensure that the original medium is set, if it hasn't been set yet then assume CD
         if "ORIGINAL_MEDIUM" not in self:
             self["ORIGINAL_MEDIUM"] = "CD"
+        elif self["ORIGINAL_MEDIUM"] not in arguments.MEDIUM_CHOICES:
+            logging.critical("Invalid medium: '%s' - must be one of %s",
+                             self['ORIGINAL_MEDIUM'], arguments.MEDIUM_CHOICES)
+            raise ValueError(f"Invalid medium: '{self['ORIGINAL_MEDIUM']}' - must be one of {arguments.MEDIUM_CHOICES}")
         # At this point it is necessary to require that all the metadata is present
         # These were setup in the constructor as ``None`` so they do exist, but they
         # must have been overridden as non-``None`` values
@@ -283,8 +288,7 @@ class Metadata(ABC):
         # We want to add '= ' to the left side and ' =' to the right side to
         # form a border
         max_len = max(len(x) for x in s)
-        for i in range(len(s)):
-            s[i] = f'= {s[i].ljust(max_len)} ='
+        s = [f'= {x:{max_len}} =' for x in s]
         max_len += 4
         s = [" ALBUM INFORMATION ".center(max_len, "=")] + s + ["=" * max_len]
         return "\n".join(s)

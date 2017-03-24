@@ -1,12 +1,13 @@
-import os
 import atexit
 import contextlib
+import os
 import xml.etree.ElementTree as ET
-from logging import getLogger
 from collections import defaultdict
+from logging import getLogger
 
-from tools.mka import chapterid, tags
-from tools.flac import metadata
+from flac_to_mka.flac import metadata
+from flac_to_mka.mka import chapterid, tags
+
 
 logging = getLogger(__name__)
 

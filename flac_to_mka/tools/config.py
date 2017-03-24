@@ -15,7 +15,7 @@ def GetConfig():
     they are in the ``Converter\tools\standalone`` directory.
     """
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    with open(os.path.join(base_dir, "..", "config.yaml")) as f:
+    with open(os.path.join(base_dir, "..", "..", "config", "config.yaml")) as f:
         config = yaml.safe_load(f.read())
     system = platform.system()
     updates = [system, socket.gethostname()]

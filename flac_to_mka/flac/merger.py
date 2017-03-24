@@ -1,14 +1,15 @@
+import atexit
 import os
 import subprocess
-import atexit
 from logging import getLogger
 
-from tools.util import ext, flacutil, namegen
+from flac_to_mka.util import ext, flacutil, namegen
+
 
 logging = getLogger(__name__)
 
 
-def checked(ext):
+def checked(extension):
     """Function to be used as a wrapper for a ``FLACMerger`` member method.
     The wrapper must be called with an ``ext`` parameter to signal which
     file extension is created by the wrapped member method, which returns a
@@ -18,12 +19,12 @@ def checked(ext):
     """
     def wrap(func):
         def wrapped(self):
-            self._delfile(ext)
+            self._delfile(extension)
             args = func(self)
             try:
                 subprocess.run(args, check=True)
             except subprocess.CalledProcessError:
-                self._delfile(ext)
+                self._delfile(extension)
                 raise
         return wrapped
     return wrap
@@ -76,14 +77,14 @@ class FLACMerger:
         """Raw access to direct FLAC merging.  Output file name must be
         set via the constructor.
         """
-        return [flacutil.SOX_EXE] + self.files + [self.outname(ext.FLAC)]
+        return [flacutil.SOX_EXE]+self.files+[self.outname(ext.FLAC)]
 
     @checked(ext.WAV)
     def MergeWAV(self):
         """Optional two-step encoding allows merging of FLAC files into intermediate
         WAV file.  Output file name must be set via the constructor.
         """
-        return [flacutil.SOX_EXE] + self.files + [self.outname(ext.WAV)]
+        return [flacutil.SOX_EXE]+self.files+[self.outname(ext.WAV)]
 
     @checked(ext.FLAC)
     def Encode(self):

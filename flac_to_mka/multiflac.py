@@ -1,10 +1,9 @@
-#!/usr/bin/env python
-import os
-import pickle
 import atexit
-from tools.flac import arguments, merger, verifier, metadata, cuewriter
-from tools.mka import arthandler, chapterwriter, createmka, tagwriter
-from tools.util import ext, flacutil, namegen
+import os
+
+from flac_to_mka.flac import arguments, merger, verifier, metadata, cuewriter
+from flac_to_mka.mka import arthandler, chapterwriter, tagwriter, createmka
+from flac_to_mka.util import ext, flacutil, namegen
 
 
 def flac_exists(flacname, mergeflacs):
@@ -45,8 +44,6 @@ def MakeMatroska(args, files, mdata, filename):
         # to use CUE file MKA creation mode and shouldn't be in this function
         merger.FLACMerger(files).Create(filename(ext.FLAC))
     createmka.MKACreator(args, mdata, filename, artwork).Create()
-    with open(filename("pickle"), 'wb') as f:
-        pickle.dump(mdata, f)
 
 
 def main():

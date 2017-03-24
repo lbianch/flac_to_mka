@@ -1,13 +1,13 @@
 import os
 import subprocess
 
-from tools.util import ext, flacutil, namegen
+from flac_to_mka.util import ext, flacutil, namegen
 
 
 class MKACreator:
     def __init__(self, args, mdata, sourcename, artwork):
         self.sourcename = namegen.GetNamegen(sourcename)
-        self.mkafile = MKACreator._GetOutputFilename(args, flacutil.FileName(self.sourcename()))
+        self.mkafile = args.output or MKACreator._GetOutputFilename(args, flacutil.FileName(self.sourcename()))
         self.title = mdata["TITLE"]
         self.cmd = []
         self.artwork = artwork

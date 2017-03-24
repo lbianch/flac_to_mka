@@ -1,7 +1,8 @@
-from os import path
 import logging
+from os import path
 
-from tools.util import flacutil
+from flac_to_mka.util import flacutil
+
 logging = logging.getLogger(__name__)
 
 

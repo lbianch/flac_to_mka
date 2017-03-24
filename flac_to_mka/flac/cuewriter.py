@@ -1,10 +1,11 @@
 import atexit
 import contextlib
 import os
-from logging import getLogger
 from itertools import chain
+from logging import getLogger
 
-from tools.util import ext, flacutil, namegen, time
+from flac_to_mka.util import ext, flacutil, namegen, time
+
 
 logging = getLogger(__name__)
 IgnoreKeyError = contextlib.suppress(KeyError)

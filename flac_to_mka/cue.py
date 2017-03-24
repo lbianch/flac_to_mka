@@ -1,8 +1,11 @@
 import os.path
 from logging import getLogger
-from tools.flac import arguments, cuewriter, metadata
-from tools.util import ext, flacutil, namegen
-from tools.mka import arthandler, chapterwriter, createmka, tagwriter
+
+from flac_to_mka.flac import arguments, cuewriter, metadata
+from flac_to_mka.mka import arthandler, chapterwriter, tagwriter, createmka
+from flac_to_mka.util import ext, flacutil, namegen
+
+
 logging = getLogger(__name__)
 
 

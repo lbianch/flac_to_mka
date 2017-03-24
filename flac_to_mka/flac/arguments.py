@@ -1,4 +1,15 @@
 import argparse
+import logging
+
+MEDIUM_CHOICES = ["CD", "SACD", "DVD", "DVD-A", "Blu-ray",
+                  "Web",
+                  "Vinyl", "78RPM Vinyl",
+                  "LP", "Vinyl LP", "45RPM Vinyl LP",
+                  "EP", "Vinyl EP", "45RPM Vinyl EP",
+                  "180g Vinyl LP", "180g 45RPM Vinyl LP",
+                  "200g Vinyl LP", "200g 45RPM Vinyl LP",
+                  "220g Vinyl LP", "220g 45RPM Vinyl LP",
+                  "Reel-to-reel", "8-Track", "Cassette", "VHS"]
 
 
 def ParseArguments():
@@ -28,15 +39,7 @@ def ParseArguments():
                       help="Specify version of release; useful for regional releases, volumes, or special editions")
     args.add_argument("--medium",
                       help="Specify source medium of release",
-                      choices=["CD", "SACD", "DVD", "DVD-A", "Blu-ray",
-                               "Web",
-                               "Vinyl", "78RPM Vinyl",
-                               "LP", "Vinyl LP", "45RPM Vinyl LP",
-                               "EP", "Vinyl EP", "45RPM Vinyl EP",
-                               "180g Vinyl LP", "180g 45RPM Vinyl LP",
-                               "200g Vinyl LP", "200g 45RPM Vinyl LP",
-                               "220g Vinyl LP", "220g 45RPM Vinyl LP",
-                               "Reel-to-reel", "8-Track", "Cassette", "VHS"])
+                      choices=MEDIUM_CHOICES)
     args.add_argument("--disc",
                       help="Disc number (must specify number of discs)")
     args.add_argument("--discs",
@@ -60,4 +63,26 @@ def ParseArguments():
     disc_group.add_argument("--nodiscs",
                             action="store_true",
                             help="Ignore disc tags; track numbers start at 1 and all tracks are merged")
+    logging_group = args.add_mutually_exclusive_group()
+    logging_group.add_argument("--error",
+                               action="store_const",
+                               help="Report logging messages at error level or higher",
+                               dest="logging_level",
+                               const=logging.ERROR)
+    logging_group.add_argument("--warning",
+                               action="store_const",
+                               help="Report logging messages at warning level or higher",
+                               dest="logging_level",
+                               const=logging.WARNING)
+    logging_group.add_argument("--info",
+                               action="store_const",
+                               help="Report logging messages at information level or higher",
+                               dest="logging_level",
+                               const=logging.INFO)
+    logging_group.add_argument("--debug",
+                               action="store_const",
+                               help="Report all logging messages",
+                               dest="logging_level",
+                               const=logging.DEBUG)
+    args.set_defaults(logging_level=logging.CRITICAL)
     return args.parse_args()  # Uses sys.argv

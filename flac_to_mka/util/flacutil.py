@@ -1,6 +1,8 @@
-import platform
 import os
-from tools import config
+import platform
+
+from flac_to_mka.tools import config
+
 if platform.system() == "Windows":
     import win32api
     import win32con
@@ -62,12 +64,12 @@ def GetFilenames(exts, directory=".", case=False, abspath=True, exclude=()):
     else:
         exclude = [e.lower() for e in exclude]
         files = [f for f in files if not f.lower() in exclude]
-    if abspath:
-        files = [os.path.join(directory, f) for f in files]
     if case:  # Case SENSITIVE
         files = [f for f in files if any(f.endswith(ext) for ext in exts)]
     else:     # Case INSENSITIVE
         files = [f for f in files if any(f.lower().endswith(ext) for ext in exts)]
+    if abspath:
+        files = [os.path.join(directory, f) for f in files]
     files.sort()
     return files
 
@@ -77,7 +79,7 @@ def FileIsHidden(f):
     This function is Windows/Linux safe.
     """
     if platform.system() == "Windows":
-        # Note this is bitwise as the RHS is a mask
+        # Note this is bitwise and as the RHS is a mask
         return bool(win32api.GetFileAttributes(f) & win32con.FILE_ATTRIBUTE_HIDDEN)
     # Linux/Mac hidden files simply have file names that start with a dot
     return FileName(f).startswith('.')

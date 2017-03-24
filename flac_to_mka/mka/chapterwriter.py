@@ -1,11 +1,12 @@
-import os
 import atexit
+import os
 import xml.etree.ElementTree as ET
 from logging import getLogger
 
-from tools.mka import chapterid, tags
-from tools.flac import metadata
-from tools.mka.tagwriter import PrettifyXML
+from flac_to_mka.flac import metadata
+from flac_to_mka.mka import chapterid, tags
+from flac_to_mka.mka.tagwriter import PrettifyXML
+
 
 logging = getLogger(__name__)
 

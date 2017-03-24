@@ -2,11 +2,11 @@ import os
 import re
 
 import mutagen.flac
-
 from tools.flac import metadata
 from tools.flac.arguments import ParseArguments
-from tools.util import ext
 from tools.util.flacutil import DirectoryName, FileName, GetFilenames
+
+from flac_to_mka.util import ext
 
 
 def DiscTag(data):
@@ -23,8 +23,8 @@ def DiscTag(data):
     if int(data["DISCTOTAL"][0]) < 2:
         raise RuntimeError("Needs multiple discs")
 
-    # str(int(x)) such that if x == "01", str(int(x)) == "1", for 2-9 disc sets
-    # str(int(x)) such that if x == "1", str(int(x)) == "01" for 10-99 disc sets
+    # str(int(y)) such that if y == "01", str(int(y)) == "1", for 2-9 disc sets
+    # str(int(y)) such that if y == "1", str(int(y)) == "01" for 10-99 disc sets
     def get(key):
         return str(int(data[key][0]))
     disclen = len(get("DISCTOTAL"))

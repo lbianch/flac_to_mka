@@ -1,22 +1,24 @@
 #!/usr/bin/env python
 import logging
-from tools import cue, multiflac
-from tools.flac.arguments import ParseArguments
-from tools.util import ext
-from tools.util.flacutil import GetFilenames
 
-logging.basicConfig(level=logging.INFO,
+from flac_to_mka import cue, multiflac
+from flac_to_mka.flac.arguments import ParseArguments
+from flac_to_mka.util.flacutil import GetFilenames
+from flac_to_mka.util import ext
+
+
+args = ParseArguments()
+logging.basicConfig(level=args.logging_level,
                     format='[%(name)s - %(asctime)s] %(levelname)s: %(message)s')
 
 
 def main():
-    directory = ParseArguments().directory
     # Check for explicit .cue as input:
-    if directory.lower().endswith(ext.CUE):
+    if args.directory.lower().endswith(ext.CUE):
         cue.main()
         return
-    flacs = GetFilenames(ext.FLAC, directory)
-    cues = GetFilenames(ext.CUE, directory)
+    flacs = GetFilenames(ext.FLAC, args.directory)
+    cues = GetFilenames(ext.CUE, args.directory)
     if not flacs:
         raise FileNotFoundError("No FLAC file(s)")
     if len(flacs) == 1 and len(cues) == 1:
