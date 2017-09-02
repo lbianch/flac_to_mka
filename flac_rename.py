@@ -2,9 +2,9 @@ import os
 import re
 
 import mutagen.flac
-from tools.flac import metadata
-from tools.flac.arguments import ParseArguments
-from tools.util.flacutil import DirectoryName, FileName, GetFilenames
+from flac_to_mka.flac import metadata
+from flac_to_mka.flac.arguments import ParseArguments
+from flac_to_mka.util.flacutil import DirectoryName, FileName, GetFilenames
 
 from flac_to_mka.util import ext
 
@@ -28,20 +28,28 @@ def DiscTag(data):
     def get(key):
         return str(int(data[key][0]))
     disclen = len(get("DISCTOTAL"))
-    return f"{get('DISCNUMBER'):0{disclen}}."
+    return f"{get('DISCNUMBER').rjust(disclen, '0')}."
 
 
 def NewName(f, mdata):
     data = mutagen.flac.FLAC(f)
-    pattern = "{artist} - {disc}{track:02} - {title}.flac"
+    if 'SUBINDEX' in data:
+        pattern = "{artist} - {disc}{track:02}.{subindex:02} - {title} - {subtitle}.flac"
+    else:
+        pattern = "{artist} - {disc}{track:02} - {title}.flac"
     try:
-        name = pattern.format(artist=mdata["ARTIST"],
-                              disc=DiscTag(data),
-                              track=data["TRACKNUMBER"][0],
-                              title=data["TITLE"][0])
+        metadata = dict(artist=mdata["ARTIST"],
+                        disc=DiscTag(data),
+                        track=int(data["TRACKNUMBER"][0]),
+                        title=data["TITLE"][0])
+        if 'SUBINDEX' in data:
+            metadata['subindex'] = int(data['SUBINDEX'][0])
+            metadata['subtitle'] = data['SUBTITLE'][0]
     except KeyError as key:
         print(f"{f} has no value for {key}")
         name = f
+    else:
+        name = pattern.format(**metadata)
     name = re.compile(r"[<>:/\\]").sub("-", name)
     name = re.compile("[|?*]").sub("", name)
     name = name.replace('"', "'")

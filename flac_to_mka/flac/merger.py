@@ -78,17 +78,3 @@ class FLACMerger:
         set via the constructor.
         """
         return [flacutil.SOX_EXE]+self.files+[self.outname(ext.FLAC)]
-
-    @checked(ext.WAV)
-    def MergeWAV(self):
-        """Optional two-step encoding allows merging of FLAC files into intermediate
-        WAV file.  Output file name must be set via the constructor.
-        """
-        return [flacutil.SOX_EXE]+self.files+[self.outname(ext.WAV)]
-
-    @checked(ext.FLAC)
-    def Encode(self):
-        """Optional two-step encoding requires the intermediate WAV file to already
-        exist.  Output file name must be set via the constructor.
-        """
-        return [flacutil.FLAC_EXE, "--best", self.outname(ext.WAV)]

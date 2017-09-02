@@ -60,7 +60,7 @@ class CueSheet:
 
     def Create(self, outputname=None):
         self.outputname = outputname or self.outputname
-        with open(self.outputname, "w") as out:
+        with open(self.outputname, "w", encoding='utf-8') as out:
             out.write('\n'.join(self.cuesheet))
             out.write('\n')
 

@@ -9,7 +9,6 @@ if platform.system() == "Windows":
 
 # Handle via config
 configuration = config.GetConfig()
-FLAC_EXE = configuration['flac']
 METAFLAC_EXE = configuration['metaflac']
 SOX_EXE = configuration['sox']
 MKVMERGE_EXE = configuration['mkvmerge']
@@ -70,6 +69,7 @@ def GetFilenames(exts, directory=".", case=False, abspath=True, exclude=()):
         files = [f for f in files if any(f.lower().endswith(ext) for ext in exts)]
     if abspath:
         files = [os.path.join(directory, f) for f in files]
+    files = [f for f in files if not FileIsHidden(f)]
     files.sort()
     return files
 

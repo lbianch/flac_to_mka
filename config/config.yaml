@@ -1,16 +1,14 @@
 output: .
 lame: lame
 sox: sox
-flac: flac
 metaflac: metaflac
 mkvmerge: mkvmerge
 # Overrides for particular system types
 Windows:
-    lame: tools\standalone\lame.exe
-    sox: tools\standalone\sox\sox.exe
-    flac: tools\standalone\flac.exe
-    metaflac: tools\standalone\metaflac.exe
-    mkvmerge: tools\standalone\mkvmerge.exe
+    lame: external\lame.exe
+    sox: external\sox\sox.exe
+    metaflac: external\metaflac.exe
+    mkvmerge: external\mkvmerge.exe
 # Specify particular overrides for each system
 # If a system has multiple OSes, common changes
 # can go at the level of the machine while

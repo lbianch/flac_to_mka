@@ -198,7 +198,8 @@ class Metadata(ABC):
         the output should contain the "TOTAL_PARTS" field which specifies the number of
         tracks.  This method also ensures the "DATE_RECORDED" field is a 4-digit year.
         Note that when specified, the number of tracks is not simply ``len(self.tracks)``
-        but rather the highest numbered track.
+        but rather the highest numbered track.  Ensures that if any track has a phase, but
+        the phase name is not set then it defaults to 'Phase'.
         """
         logging.debug("Sumparts = %s", self.sumparts)
         if self.sumparts:
@@ -223,6 +224,8 @@ class Metadata(ABC):
                     break
             else:
                 raise RuntimeError(f"Can't parse date {self['DATE_RECORDED']}")
+        if any('phase' in t for t in self.tracks) and 'PHASE_NAME' not in self.data:
+            self.data['PHASE_NAME'] = 'Phase'
 
     def __getitem__(self, key):
         """If the ``key`` doesn't exist, the empty string is returned.
@@ -268,6 +271,7 @@ class Metadata(ABC):
         add_optional("VERSION")
         add_optional("HD_FORMAT")
         add_optional("DISC_NAME")
+        add_optional("PHASE_NAME")
         if self.discs > 1:
             s["Disc"] = self["PART_NUMBER"]
             s["Discs"] = self.discs
@@ -345,9 +349,11 @@ class Metadata(ABC):
             return os.path.join(directory, filename)
         return filename
 
-    def _PrintMetadata(self):
-        print(str(self))
-        for trackno, track in enumerate(self.tracks):
+    def PrintMetadata(self):
+        """Formats and prints the metadata using the string
+        representation and adding in track-level details.
+        """
+        def PrintTrack(trackno, track):
             output = [f"File {str(trackno + 1).zfill(2)}:"]
             with IgnoreKeyError:
                 output.append(f"Disc {track['disc']}")
@@ -359,20 +365,16 @@ class Metadata(ABC):
             with IgnoreKeyError:
                 output.append(f"Subindex {track['subindex']}")
             output.append(f"Time {track['start_time']}")
-            try:
-                output.append(f'"{track["title"]}: {track["subtitle"]}"')
-            except KeyError:
-                output.append(f'"{track["title"]}"')
+            output.append(f'"{track["title"]}"')
+            with IgnoreKeyError:
+                output[-1] = f'{output[-1][:-1]}: {track["subtitle"]}"'
             print(' '.join(output))
+
+        print(self)
+        for trackno, track in enumerate(self.tracks):
+            PrintTrack(trackno, track)
         filename = self.GetOutputFilename().replace(ext.WAV, ext.MKA)
         print("Filename:", filename)
-
-    def PrintMetadata(self):
-        """Formats and prints the metadata using the string
-        representation and adding in track-level details.
-        """
-        with contextlib.suppress(UnicodeEncodeError):
-            self._PrintMetadata()
 
     def Confirm(self):
         """Prints out metadata using ``PrintMetadata`` then asks
@@ -392,8 +394,8 @@ def _GetAlbumLevelMetadata(files):
     # Assumption is these tags are the same for every file
     tag = mutagen.flac.FLAC(files[0])
     # These tags are copied directly
-    directmap = ["ARTIST", "GENRE", "LABEL", "ISSUE_DATE",
-                 "VERSION", "ORIGINAL_MEDIUM", "DISC_NAME"]
+    directmap = ["ARTIST", "GENRE", "LABEL", "ISSUE_DATE", "VERSION",
+                 "ORIGINAL_MEDIUM", "DISC_NAME", "PHASE_NAME"]
     # These are renamed
     mapping = {"TITLE": "ALBUM", "DATE_RECORDED": "DATE"}
     mapping.update({k: k for k in directmap})
@@ -413,7 +415,7 @@ class AlbumMetadata(Metadata):
     structure.
     Supported disc-level FLAC tags:
       ARTIST, TITLE, DATE, GENRE, LABEL, ISSUE_DATE, VERSION,
-      ORIGINAL_MEDIUM, DISC_NAME, DISCTOTAL, DISCNUMBER
+      ORIGINAL_MEDIUM, DISC_NAME, DISCTOTAL, DISCNUMBER, PHASE_NAME
     Supported track-level FLAC tags:
       TITLE, TRACKNUMBER, SIDE, SUBINDEX, SUBTITLE, PHASE
     NB: DISCNUMBER is ignored if DISCTOTAL is not present, and vice versa,
@@ -433,8 +435,7 @@ class AlbumMetadata(Metadata):
             raise ValueError("Cannot use 'AlbumMetadata' in multidisc mode, use 'MultidiscMetadata'")
 
         # Pull in album level data
-        data = _GetAlbumLevelMetadata(self.source)
-        self.data.update(data)
+        self.data.update(_GetAlbumLevelMetadata(self.source))
 
         # Pull disc number from tags if both fields exist, but skip if disc 1/1
         tag = self._GetTag()
@@ -480,7 +481,7 @@ class MultidiscMetadata(Metadata):
     structure.
     Supported collection-level FLAC tags (``self.data``):
       DISCTOTAL, ARTIST, ALBUM TITLE, DATE, GENRE, LABEL,
-      ISSUE_DATE,  ORIGINAL_MEDIUM, VERSION
+      ISSUE_DATE,  ORIGINAL_MEDIUM, VERSION, PHASE_NAME
     Supported disc-level FLAC tags (``self.disc_data``):
       DISC_NAME, (Number of tracks is calculated automatically)
     Supported track-level FLAC tags (``self.tracks``):
@@ -543,8 +544,8 @@ class MultidiscMetadata(Metadata):
     def _GetTag(self):
         return mutagen.flac.FLAC(self.source[0])
 
-    def _PrintMetadata(self):
-        Metadata._PrintMetadata(self)
+    def PrintMetadata(self):
+        Metadata.PrintMetadata(self)
         for disc, name in sorted(self.disc_data.items()):
             print(f"Disc {disc} Name: {name}")
 
@@ -701,7 +702,7 @@ def GetMetadata(source, args=None):
     """
     if issubclass(source.__class__, Metadata):
         return source
-    if not args:
+    if args is None:
         args = arguments.ParseArguments()
     if isinstance(source, str) and source.lower().endswith(ext.CUE) and os.path.isfile(source):
         return CueMetadata(source, args)

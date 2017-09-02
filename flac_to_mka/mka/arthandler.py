@@ -83,9 +83,7 @@ class Artwork:
          - Aspect ratio between 0.99 and 1.01
 
         :param: ``filename`` [str], path to image file
-        :returns: [tuple[bool, int]] where
-                   bool: Describes whether the image satisfies the criteria
-                   int: Image width, useful for finding the largest image
+        :returns: `int` specifying the width of the image or 0 for an unusable image
         """
         with Image.open(filename, 'r') as img:
             # Remove small images:
